@@ -19,6 +19,39 @@ export default function Chat({ postId }: { postId: string }) {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval>>(null);
   const prevCountRef = useRef(0);
+  const [translations, setTranslations] = useState<Record<string, string>>({});
+  const [translating, setTranslating] = useState<string | null>(null);
+  const [translateError, setTranslateError] = useState<string | null>(null);
+
+  async function handleTranslate(msg: Message) {
+    if (translations[msg.id]) {
+      setTranslations((prev) => {
+        const next = { ...prev };
+        delete next[msg.id];
+        return next;
+      });
+      return;
+    }
+
+    setTranslateError(null);
+    setTranslating(msg.id);
+    try {
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: msg.content }),
+      });
+      if (res.ok) {
+        const { translated } = await res.json();
+        setTranslations((prev) => ({ ...prev, [msg.id]: translated }));
+      } else {
+        setTranslateError(msg.id);
+      }
+    } catch {
+      setTranslateError(msg.id);
+    }
+    setTranslating(null);
+  }
 
   async function fetchMessages() {
     const res = await fetch(`/api/posts/${postId}/messages`);
@@ -86,6 +119,26 @@ export default function Chat({ postId }: { postId: string }) {
                 </span>
               </div>
               <p className="text-neutral-300 text-sm mt-0.5 break-words">{msg.content}</p>
+              {translations[msg.id] && (
+                <p className="text-neutral-500 text-sm mt-1 break-words italic">
+                  {translations[msg.id]}
+                </p>
+              )}
+              {translateError === msg.id && (
+                <p className="text-red-400 text-xs mt-1">Translation failed. Try again.</p>
+              )}
+              <button
+                type="button"
+                onClick={() => handleTranslate(msg)}
+                disabled={translating === msg.id}
+                className="text-xs text-neutral-500 hover:text-neutral-300 transition mt-1 disabled:opacity-50"
+              >
+                {translating === msg.id
+                  ? "Translating..."
+                  : translations[msg.id]
+                  ? "Hide translation"
+                  : "Translate"}
+              </button>
             </div>
           </div>
         ))}
