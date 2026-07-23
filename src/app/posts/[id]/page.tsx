@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import BlockRenderer from "@/components/BlockRenderer";
 import Chat from "@/components/Chat";
@@ -24,12 +24,14 @@ interface Post {
 
 export default function PostPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
   const { data: session } = useSession();
   const [post, setPost] = useState<Post | null>(null);
   const [tagColors, setTagColors] = useState<Map<string, string | null>>(new Map());
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch(`/api/posts/${id}`)
@@ -69,6 +71,18 @@ export default function PostPage() {
     window.print();
   }
 
+  async function handleDelete() {
+    if (!confirm("Delete this post? This cannot be undone.")) return;
+    setDeleting(true);
+    const res = await fetch(`/api/posts/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      router.push("/");
+    } else {
+      setDeleting(false);
+      alert("Failed to delete the post. Please try again.");
+    }
+  }
+
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12 text-center text-neutral-500">
@@ -93,12 +107,21 @@ export default function PostPage() {
         </Link>
         <div className="flex gap-2">
           {session?.user?.id === post.authorId && (
-            <Link
-              href={`/posts/${post.id}/edit`}
-              className="flex items-center gap-1.5 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-sm text-neutral-300 transition"
-            >
-              Edit
-            </Link>
+            <>
+              <Link
+                href={`/posts/${post.id}/edit`}
+                className="flex items-center gap-1.5 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-sm text-neutral-300 transition"
+              >
+                Edit
+              </Link>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex items-center gap-1.5 px-4 py-2 bg-neutral-800 hover:bg-red-900 rounded-lg text-sm text-neutral-300 hover:text-red-200 transition disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </>
           )}
           <button
             onClick={handleShare}

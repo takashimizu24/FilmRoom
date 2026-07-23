@@ -16,14 +16,19 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "No file selected" }, { status: 400 });
   }
 
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
+  try {
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
 
-  const ext = path.extname(file.name) || "";
-  const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
-  const uploadPath = path.join(process.cwd(), "public", "uploads", filename);
+    const ext = path.extname(file.name) || "";
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+    const uploadPath = path.join(process.cwd(), "public", "uploads", filename);
 
-  await writeFile(uploadPath, buffer);
+    await writeFile(uploadPath, buffer);
 
-  return Response.json({ url: `/uploads/${filename}` });
+    return Response.json({ url: `/uploads/${filename}` });
+  } catch (err) {
+    console.error("Upload failed:", err);
+    return Response.json({ error: "Upload failed on the server" }, { status: 500 });
+  }
 }

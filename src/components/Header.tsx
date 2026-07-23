@@ -81,7 +81,7 @@ export default function Header() {
   }
 
   return (
-    <header className="bg-neutral-900 border-b border-neutral-800 sticky top-0 z-50 overflow-x-clip">
+    <header className="bg-neutral-900 border-b border-neutral-800 sticky top-0 z-50">
       <div className="max-w-5xl mx-auto px-3 sm:px-4 h-14 flex items-center justify-between gap-2 sm:gap-4">
         <Link href="/" className="shrink-0 flex items-center" aria-label="FilmRoom home">
           {/* eslint-disable-next-line @next/next/no-img-element */}

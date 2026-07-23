@@ -170,19 +170,39 @@ export default function BlockEditor({
       }
     }
 
+    const MAX_UPLOAD_BYTES = 300 * 1024 * 1024; // 300MB — larger videos should use a YouTube link instead
+    if (file.size > MAX_UPLOAD_BYTES) {
+      alert(
+        "This video is too large to upload directly (over 300MB). Please upload it to YouTube and add it as a YouTube clip instead."
+      );
+      setUploading(null);
+      setPendingInsertIndex(null);
+      setPendingInsertType(null);
+      e.target.value = "";
+      return;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    if (res.ok) {
-      const { url } = await res.json();
-      const newBlock: Block = pendingInsertType === "video"
-        ? { type: "video", url, tags: [] }
-        : { type: "image", url, tags: [] };
-      const next = [...blocks];
-      next.splice(pendingInsertIndex, 0, newBlock);
-      onChange(next);
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (res.ok) {
+        const { url } = await res.json();
+        const newBlock: Block = pendingInsertType === "video"
+          ? { type: "video", url, tags: [] }
+          : { type: "image", url, tags: [] };
+        const next = [...blocks];
+        next.splice(pendingInsertIndex, 0, newBlock);
+        onChange(next);
+      } else {
+        const { error } = await res.json().catch(() => ({ error: null }));
+        alert(error || "Upload failed. Please check your connection and try again.");
+      }
+    } catch {
+      alert("Upload failed. Please check your connection and try again.");
     }
+
     setUploading(null);
     setPendingInsertIndex(null);
     setPendingInsertType(null);

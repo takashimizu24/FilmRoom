@@ -104,3 +104,29 @@ export async function PATCH(
 
   return Response.json(post);
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return Response.json({ error: "Login required" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const existing = await prisma.post.findUnique({ where: { id } });
+
+  if (!existing) {
+    return Response.json({ error: "Post not found" }, { status: 404 });
+  }
+
+  // Only the author can delete their own post.
+  if (existing.authorId !== session.user.id) {
+    return Response.json({ error: "Only the author can delete this post" }, { status: 403 });
+  }
+
+  await prisma.post.delete({ where: { id } });
+
+  return Response.json({ ok: true });
+}
