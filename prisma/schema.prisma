@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id          String           @id @default(cuid())
+  name        String
+  email       String           @unique
+  password    String
+  createdAt   DateTime         @default(now())
+  posts       Post[]
+  messages    Message[]
+  memberships TeamMembership[]
+}
+
+model Team {
+  id          String           @id @default(cuid())
+  name        String
+  inviteCode  String           @unique
+  createdAt   DateTime         @default(now())
+  memberships TeamMembership[]
+  posts       Post[]
+  tags        Tag[]
+  groups      Group[]
+}
+
+model TeamMembership {
+  id       String   @id @default(cuid())
+  userId   String
+  teamId   String
+  joinedAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+}
+
+model Tag {
+  id     String  @id @default(cuid())
+  name   String
+  color  String?
+  teamId String
+  team   Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  posts  Post[]
+
+  @@unique([teamId, name])
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  name      String
+  color     String?
+  teamId    String
+  createdAt DateTime @default(now())
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  posts     Post[]
+
+  @@unique([teamId, name])
+}
+
+model Post {
+  id        String    @id @default(cuid())
+  title     String
+  blocks    String    // JSON array of content blocks
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id])
+  messages  Message[]
+  teamId    String
+  team      Team      @relation(fields: [teamId], references: [id])
+  tags      Tag[]
+  groupId   String?
+  group     Group?    @relation(fields: [groupId], references: [id])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}

@@ -1,0 +1,9 @@
+{$DOMAIN:localhost} {
+    reverse_proxy app:3000
+    encode gzip
+
+    # 動画アップロード用に上限を大きく
+    request_body {
+        max_size 500MB
+    }
+}

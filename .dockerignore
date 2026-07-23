@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.env
+.env.local
+.env.production
+public/uploads/*
+!public/uploads/.gitkeep
+# never ship the local dev database (contains test data) into the image
+prisma/*.db
+prisma/*.db-journal
+prisma/dev.db.backup-*

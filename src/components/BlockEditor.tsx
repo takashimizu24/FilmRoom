@@ -1,0 +1,349 @@
+"use client";
+
+import { useState, useRef } from "react";
+import type { Block } from "@/lib/types";
+
+function TimeInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  const min = Math.floor(value / 60);
+  const sec = value % 60;
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-xs text-neutral-500 w-10">{label}</span>
+      <input
+        type="number"
+        min={0}
+        value={min}
+        onChange={(e) => onChange(Number(e.target.value) * 60 + sec)}
+        className="w-14 px-2 py-1 border border-neutral-700 rounded text-sm text-neutral-100 bg-neutral-800"
+        placeholder="min"
+      />
+      <span className="text-xs text-neutral-600">:</span>
+      <input
+        type="number"
+        min={0}
+        max={59}
+        value={sec}
+        onChange={(e) => onChange(min * 60 + Number(e.target.value))}
+        className="w-14 px-2 py-1 border border-neutral-700 rounded text-sm text-neutral-100 bg-neutral-800"
+        placeholder="sec"
+      />
+    </div>
+  );
+}
+
+function MediaTags({ tags, onChange }: { tags: string[]; onChange: (tags: string[]) => void }) {
+  const [input, setInput] = useState("");
+
+  function addTag() {
+    const value = input.trim();
+    if (value && !tags.includes(value)) onChange([...tags, value]);
+    setInput("");
+  }
+
+  return (
+    <div className="mt-2">
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") {
+              e.preventDefault();
+              addTag();
+            }
+          }}
+          placeholder="Add a tag..."
+          className="flex-1 px-3 py-1.5 border border-neutral-700 rounded-lg text-xs text-neutral-100 bg-neutral-800 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+        />
+        <button
+          type="button"
+          onClick={addTag}
+          className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-xs text-neutral-300 transition border border-neutral-700"
+        >
+          Add Tag
+        </button>
+      </div>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              className="flex items-center gap-1 px-2 py-0.5 bg-neutral-800 rounded-full text-xs text-neutral-300"
+            >
+              #{tag}
+              <button
+                type="button"
+                onClick={() => onChange(tags.filter((t) => t !== tag))}
+                className="text-neutral-500 hover:text-neutral-300"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatTime(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+export default function BlockEditor({
+  blocks,
+  onChange,
+}: {
+  blocks: Block[];
+  onChange: (blocks: Block[]) => void;
+}) {
+  const [uploading, setUploading] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [pendingInsertIndex, setPendingInsertIndex] = useState<number | null>(null);
+  const [pendingInsertType, setPendingInsertType] = useState<"video" | "image" | null>(null);
+
+  function updateBlock(index: number, updated: Block) {
+    const next = [...blocks];
+    next[index] = updated;
+    onChange(next);
+  }
+
+  function removeBlock(index: number) {
+    onChange(blocks.filter((_, i) => i !== index));
+  }
+
+  function moveBlock(index: number, dir: -1 | 1) {
+    const newIndex = index + dir;
+    if (newIndex < 0 || newIndex >= blocks.length) return;
+    const next = [...blocks];
+    [next[index], next[newIndex]] = [next[newIndex], next[index]];
+    onChange(next);
+  }
+
+  function addBlock(type: Block["type"], atIndex?: number) {
+    const insertAt = atIndex ?? blocks.length;
+    let newBlock: Block;
+    switch (type) {
+      case "text":
+        newBlock = { type: "text", content: "" };
+        break;
+      case "image":
+        setPendingInsertIndex(insertAt);
+        setPendingInsertType("image");
+        imageInputRef.current?.click();
+        return;
+      case "video":
+        setPendingInsertIndex(insertAt);
+        setPendingInsertType("video");
+        fileInputRef.current?.click();
+        return;
+      case "youtube":
+        newBlock = { type: "youtube", url: "", startTime: 0, endTime: 0, tags: [] };
+        break;
+      default:
+        return;
+    }
+    const next = [...blocks];
+    next.splice(insertAt, 0, newBlock);
+    onChange(next);
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    let file = e.target.files?.[0];
+    if (!file || pendingInsertIndex === null || !pendingInsertType) return;
+
+    setUploading(pendingInsertIndex);
+
+    // HEIC → JPEG conversion
+    if (file.name.toLowerCase().endsWith(".heic") || file.type === "image/heic") {
+      try {
+        const heic2any = (await import("heic2any")).default;
+        const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+        const converted = Array.isArray(blob) ? blob[0] : blob;
+        file = new File([converted], file.name.replace(/\.heic$/i, ".jpg"), { type: "image/jpeg" });
+      } catch {
+        // If conversion fails, try uploading as-is
+      }
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/upload", { method: "POST", body: formData });
+    if (res.ok) {
+      const { url } = await res.json();
+      const newBlock: Block = pendingInsertType === "video"
+        ? { type: "video", url, tags: [] }
+        : { type: "image", url, tags: [] };
+      const next = [...blocks];
+      next.splice(pendingInsertIndex, 0, newBlock);
+      onChange(next);
+    }
+    setUploading(null);
+    setPendingInsertIndex(null);
+    setPendingInsertType(null);
+    e.target.value = "";
+  }
+
+  return (
+    <div className="space-y-3">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*,.heic,.HEIC"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
+
+      {blocks.map((block, i) => (
+        <div key={i} className="group relative bg-neutral-900 border border-neutral-800 rounded-xl p-4">
+          {/* Block controls */}
+          <div className="absolute -left-10 top-1/2 -translate-y-1/2 flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => moveBlock(i, -1)}
+              className="w-7 h-7 bg-neutral-800 hover:bg-neutral-700 rounded flex items-center justify-center text-neutral-400 hover:text-neutral-200 transition"
+              title="Move up"
+              aria-label="Move up"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <path d="m6 15 6-6 6 6" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => moveBlock(i, 1)}
+              className="w-7 h-7 bg-neutral-800 hover:bg-neutral-700 rounded flex items-center justify-center text-neutral-400 hover:text-neutral-200 transition"
+              title="Move down"
+              aria-label="Move down"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => removeBlock(i)}
+            className="absolute -right-2 -top-2 w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center bg-neutral-600 text-neutral-100 rounded-full text-sm shadow-md transition hover:bg-neutral-500"
+            title="Delete"
+          >×</button>
+
+          {/* Block content */}
+          {block.type === "text" && (
+            <textarea
+              value={block.content}
+              onChange={(e) => updateBlock(i, { ...block, content: e.target.value })}
+              placeholder="Enter text..."
+              rows={3}
+              className="w-full px-3 py-2 border border-neutral-700 rounded-lg text-sm text-neutral-100 bg-neutral-800 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent resize-y"
+            />
+          )}
+
+          {block.type === "image" && (
+            <div>
+              <div className="text-xs text-neutral-500 mb-1">Image</div>
+              <img src={block.url} alt="" className="max-h-64 rounded-lg" />
+              <MediaTags
+                tags={block.tags ?? []}
+                onChange={(tags) => updateBlock(i, { ...block, tags })}
+              />
+            </div>
+          )}
+
+          {block.type === "video" && (
+            <div>
+              <div className="text-xs text-neutral-500 mb-1">Video</div>
+              <video src={block.url} controls playsInline className="max-h-64 rounded-lg" />
+              <MediaTags
+                tags={block.tags ?? []}
+                onChange={(tags) => updateBlock(i, { ...block, tags })}
+              />
+            </div>
+          )}
+
+          {block.type === "youtube" && (
+            <div className="space-y-2">
+              <div className="text-xs text-neutral-500">YouTube</div>
+              <input
+                type="url"
+                value={block.url}
+                onChange={(e) => updateBlock(i, { ...block, url: e.target.value })}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="w-full px-3 py-2 border border-neutral-700 rounded-lg text-sm text-neutral-100 bg-neutral-800 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+              />
+              <div className="flex gap-4">
+                <TimeInput
+                  label="Start"
+                  value={block.startTime}
+                  onChange={(v) => updateBlock(i, { ...block, startTime: v })}
+                />
+                <TimeInput
+                  label="End"
+                  value={block.endTime}
+                  onChange={(v) => updateBlock(i, { ...block, endTime: v })}
+                />
+                {block.startTime > 0 || block.endTime > 0 ? (
+                  <span className="text-xs text-neutral-400 self-center">
+                    {formatTime(block.startTime)} – {block.endTime > 0 ? formatTime(block.endTime) : "end"}
+                  </span>
+                ) : null}
+              </div>
+              <MediaTags
+                tags={block.tags ?? []}
+                onChange={(tags) => updateBlock(i, { ...block, tags })}
+              />
+            </div>
+          )}
+        </div>
+      ))}
+
+      {uploading !== null && (
+        <div className="text-center py-3 text-sm text-neutral-500">Uploading...</div>
+      )}
+
+      {/* Add block buttons */}
+      <div className="flex gap-2 pt-2">
+        <button
+          type="button"
+          onClick={() => addBlock("text")}
+          className="flex items-center gap-1.5 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-sm text-neutral-300 transition"
+        >
+          <span className="text-base">T</span> Text
+        </button>
+        <button
+          type="button"
+          onClick={() => addBlock("image")}
+          className="flex items-center gap-1.5 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-sm text-neutral-300 transition"
+        >
+          <span className="text-base">🖼</span> Image
+        </button>
+        <button
+          type="button"
+          onClick={() => addBlock("video")}
+          className="flex items-center gap-1.5 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-sm text-neutral-300 transition"
+        >
+          <span className="text-base">🎬</span> Video
+        </button>
+        <button
+          type="button"
+          onClick={() => addBlock("youtube")}
+          className="flex items-center gap-1.5 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-sm text-neutral-300 transition"
+        >
+          <span className="text-base">▶</span> YouTube
+        </button>
+      </div>
+    </div>
+  );
+}
