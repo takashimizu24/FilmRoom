@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "@/components/SessionProvider";
@@ -12,6 +12,15 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "FilmRoom",
   description: "Video analysis & team sharing",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "FilmRoom",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
 };
 
 export default function RootLayout({
