@@ -4,18 +4,34 @@ import { useState, useRef } from "react";
 import type { Block } from "@/lib/types";
 
 function TimeInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
-  const min = Math.floor(value / 60);
+  const hours = Math.floor(value / 3600);
+  const min = Math.floor((value % 3600) / 60);
   const sec = value % 60;
+  const set = (h: number, m: number, s: number) => onChange(Math.max(0, h * 3600 + m * 60 + s));
+  const fieldClass =
+    "w-16 px-2 py-1 border border-neutral-700 rounded text-sm text-neutral-100 bg-neutral-800";
   return (
     <div className="flex items-center gap-1">
-      <span className="text-xs text-neutral-500 w-10">{label}</span>
+      <span className="text-xs text-neutral-500 w-10 shrink-0">{label}</span>
       <input
         type="number"
         min={0}
+        value={hours}
+        onChange={(e) => set(Number(e.target.value) || 0, min, sec)}
+        className={fieldClass}
+        placeholder="hr"
+        aria-label={`${label} hours`}
+      />
+      <span className="text-xs text-neutral-600">:</span>
+      <input
+        type="number"
+        min={0}
+        max={59}
         value={min}
-        onChange={(e) => onChange(Number(e.target.value) * 60 + sec)}
-        className="w-14 px-2 py-1 border border-neutral-700 rounded text-sm text-neutral-100 bg-neutral-800"
+        onChange={(e) => set(hours, Number(e.target.value) || 0, sec)}
+        className={fieldClass}
         placeholder="min"
+        aria-label={`${label} minutes`}
       />
       <span className="text-xs text-neutral-600">:</span>
       <input
@@ -23,9 +39,10 @@ function TimeInput({ label, value, onChange }: { label: string; value: number; o
         min={0}
         max={59}
         value={sec}
-        onChange={(e) => onChange(min * 60 + Number(e.target.value))}
-        className="w-14 px-2 py-1 border border-neutral-700 rounded text-sm text-neutral-100 bg-neutral-800"
+        onChange={(e) => set(hours, min, Number(e.target.value) || 0)}
+        className={fieldClass}
         placeholder="sec"
+        aria-label={`${label} seconds`}
       />
     </div>
   );
@@ -88,9 +105,13 @@ function MediaTags({ tags, onChange }: { tags: string[]; onChange: (tags: string
 }
 
 function formatTime(seconds: number) {
-  const m = Math.floor(seconds / 60);
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
+  const mm = h > 0 ? m.toString().padStart(2, "0") : `${m}`;
+  return h > 0
+    ? `${h}:${mm}:${s.toString().padStart(2, "0")}`
+    : `${mm}:${s.toString().padStart(2, "0")}`;
 }
 
 export default function BlockEditor({
@@ -103,8 +124,10 @@ export default function BlockEditor({
   const [uploading, setUploading] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
   const [pendingInsertIndex, setPendingInsertIndex] = useState<number | null>(null);
   const [pendingInsertType, setPendingInsertType] = useState<"video" | "image" | null>(null);
+  const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
 
   function updateBlock(index: number, updated: Block) {
     const next = [...blocks];
@@ -152,11 +175,11 @@ export default function BlockEditor({
     onChange(next);
   }
 
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    let file = e.target.files?.[0];
-    if (!file || pendingInsertIndex === null || !pendingInsertType) return;
-
-    setUploading(pendingInsertIndex);
+  // Shared upload helper: converts HEIC, enforces the size cap, and posts the
+  // file. Returns the stored URL, or null if it was rejected/failed (an alert is
+  // shown in that case).
+  async function uploadFile(input: File): Promise<string | null> {
+    let file = input;
 
     // HEIC → JPEG conversion
     if (file.name.toLowerCase().endsWith(".heic") || file.type === "image/heic") {
@@ -175,11 +198,7 @@ export default function BlockEditor({
       alert(
         "This file is too large (over 500MB). Please trim it into shorter clips before uploading."
       );
-      setUploading(null);
-      setPendingInsertIndex(null);
-      setPendingInsertType(null);
-      e.target.value = "";
-      return;
+      return null;
     }
 
     try {
@@ -193,23 +212,73 @@ export default function BlockEditor({
       });
       if (res.ok) {
         const { url } = await res.json();
-        const newBlock: Block = pendingInsertType === "video"
-          ? { type: "video", url, tags: [] }
-          : { type: "image", url, tags: [] };
-        const next = [...blocks];
-        next.splice(pendingInsertIndex, 0, newBlock);
-        onChange(next);
-      } else {
-        const { error } = await res.json().catch(() => ({ error: null }));
-        alert(error || "Upload failed. Please check your connection and try again.");
+        return url as string;
       }
+      const { error } = await res.json().catch(() => ({ error: null }));
+      alert(error || "Upload failed. Please check your connection and try again.");
+      return null;
     } catch {
       alert("Upload failed. Please check your connection and try again.");
+      return null;
+    }
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || pendingInsertIndex === null || !pendingInsertType) return;
+
+    setUploading(pendingInsertIndex);
+    const url = await uploadFile(file);
+    if (url) {
+      const newBlock: Block =
+        pendingInsertType === "video"
+          ? { type: "video", url, tags: [] }
+          : { type: "image", url, tags: [] };
+      const next = [...blocks];
+      next.splice(pendingInsertIndex, 0, newBlock);
+      onChange(next);
     }
 
     setUploading(null);
     setPendingInsertIndex(null);
     setPendingInsertType(null);
+    e.target.value = "";
+  }
+
+  // Swap the file behind an existing video/image block. The old file is deleted
+  // from storage when the post is saved (see the post PATCH handler), so space
+  // is reclaimed without breaking the post if the edit is cancelled.
+  function handleReplaceClick(index: number) {
+    const block = blocks[index];
+    if (block.type !== "video" && block.type !== "image") return;
+    setReplacingIndex(index);
+    if (replaceInputRef.current) {
+      replaceInputRef.current.accept =
+        block.type === "video" ? "video/*" : "image/*,.heic,.HEIC";
+    }
+    replaceInputRef.current?.click();
+  }
+
+  async function handleReplaceFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const index = replacingIndex;
+    if (!file || index === null) {
+      setReplacingIndex(null);
+      e.target.value = "";
+      return;
+    }
+
+    setUploading(index);
+    const url = await uploadFile(file);
+    if (url) {
+      const block = blocks[index];
+      if (block.type === "video" || block.type === "image") {
+        updateBlock(index, { ...block, url });
+      }
+    }
+
+    setUploading(null);
+    setReplacingIndex(null);
     e.target.value = "";
   }
 
@@ -228,6 +297,12 @@ export default function BlockEditor({
         accept="image/*,.heic,.HEIC"
         className="hidden"
         onChange={handleFileUpload}
+      />
+      <input
+        ref={replaceInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleReplaceFile}
       />
 
       {blocks.map((block, i) => (
@@ -277,7 +352,17 @@ export default function BlockEditor({
 
           {block.type === "image" && (
             <div>
-              <div className="text-xs text-neutral-500 mb-1">Image</div>
+              <div className="text-xs text-neutral-500 mb-1 flex items-center justify-between">
+                <span>Image</span>
+                <button
+                  type="button"
+                  onClick={() => handleReplaceClick(i)}
+                  disabled={uploading === i}
+                  className="text-neutral-400 hover:text-neutral-200 transition disabled:opacity-50"
+                >
+                  {uploading === i ? "Replacing…" : "Replace"}
+                </button>
+              </div>
               <img src={block.url} alt="" className="max-h-64 rounded-lg" />
               <MediaTags
                 tags={block.tags ?? []}
@@ -288,7 +373,17 @@ export default function BlockEditor({
 
           {block.type === "video" && (
             <div>
-              <div className="text-xs text-neutral-500 mb-1">Video</div>
+              <div className="text-xs text-neutral-500 mb-1 flex items-center justify-between">
+                <span>Video</span>
+                <button
+                  type="button"
+                  onClick={() => handleReplaceClick(i)}
+                  disabled={uploading === i}
+                  className="text-neutral-400 hover:text-neutral-200 transition disabled:opacity-50"
+                >
+                  {uploading === i ? "Replacing…" : "Replace"}
+                </button>
+              </div>
               <video src={block.url} controls playsInline className="max-h-64 rounded-lg" />
               <MediaTags
                 tags={block.tags ?? []}
@@ -307,7 +402,7 @@ export default function BlockEditor({
                 placeholder="https://www.youtube.com/watch?v=..."
                 className="w-full px-3 py-2 border border-neutral-700 rounded-lg text-sm text-neutral-100 bg-neutral-800 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
               />
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-x-4">
                 <TimeInput
                   label="Start"
                   value={block.startTime}

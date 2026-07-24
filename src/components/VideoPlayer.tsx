@@ -16,9 +16,13 @@ function extractYoutubeId(url: string): string | null {
 
 function formatTime(seconds: number) {
   if (!isFinite(seconds) || seconds < 0) return "0:00";
-  const m = Math.floor(seconds / 60);
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
+  const mm = h > 0 ? m.toString().padStart(2, "0") : `${m}`;
+  return h > 0
+    ? `${h}:${mm}:${s.toString().padStart(2, "0")}`
+    : `${mm}:${s.toString().padStart(2, "0")}`;
 }
 
 export function YouTubePlayer({

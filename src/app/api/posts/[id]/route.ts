@@ -1,7 +1,22 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { isTeamMember } from "@/lib/team";
+import { parseBlocks } from "@/lib/tags";
+import { r2KeyFromUrl, deleteR2Objects } from "@/lib/r2";
+import type { Block } from "@/lib/types";
 import { NextRequest } from "next/server";
+
+// R2 object keys referenced by a post's media blocks (skips non-R2 URLs).
+function r2KeysFromBlocks(blocks: Block[]): string[] {
+  const keys: string[] = [];
+  for (const b of blocks) {
+    if (b.type === "video" || b.type === "image") {
+      const key = r2KeyFromUrl(b.url);
+      if (key) keys.push(key);
+    }
+  }
+  return keys;
+}
 
 export async function GET(
   _request: Request,
@@ -102,6 +117,13 @@ export async function PATCH(
     include: { tags: true, group: true },
   });
 
+  // Reclaim storage: delete R2 files that were removed or replaced in this edit
+  // (i.e. present before but no longer referenced by the saved blocks).
+  const oldKeys = r2KeysFromBlocks(parseBlocks(existing.blocks));
+  const newKeys = new Set(r2KeysFromBlocks(blocks as Block[]));
+  const removedKeys = oldKeys.filter((key) => !newKeys.has(key));
+  await deleteR2Objects(removedKeys);
+
   return Response.json(post);
 }
 
@@ -127,6 +149,9 @@ export async function DELETE(
   }
 
   await prisma.post.delete({ where: { id } });
+
+  // Reclaim storage: remove the post's uploaded media from R2.
+  await deleteR2Objects(r2KeysFromBlocks(parseBlocks(existing.blocks)));
 
   return Response.json({ ok: true });
 }
