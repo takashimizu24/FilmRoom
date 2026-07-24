@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Block } from "@/lib/types";
 import { YouTubePlayer, UploadedVideo } from "./VideoPlayer";
-import { contrastText } from "@/lib/color";
+import TagPill from "./TagPill";
 
 function TextBlock({ content }: { content: string }) {
   const [translated, setTranslated] = useState<string | null>(null);
@@ -71,19 +71,10 @@ function MediaTagList({
 }) {
   if (!tags || tags.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-1.5 mt-2">
-      {tags.map((t) => {
-        const color = colors?.get(t) ?? null;
-        return (
-          <span
-            key={t}
-            className={`text-xs px-2 py-0.5 rounded-full ${color ? "" : "text-neutral-500 bg-neutral-800"}`}
-            style={color ? { backgroundColor: color, color: contrastText(color) } : undefined}
-          >
-            #{t}
-          </span>
-        );
-      })}
+    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+      {tags.map((t) => (
+        <TagPill key={t} name={t} color={colors?.get(t) ?? null} />
+      ))}
     </div>
   );
 }

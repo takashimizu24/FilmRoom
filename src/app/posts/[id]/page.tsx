@@ -6,9 +6,9 @@ import { useSession } from "next-auth/react";
 import BlockRenderer from "@/components/BlockRenderer";
 import Chat from "@/components/Chat";
 import GroupBadge from "@/components/GroupBadge";
+import TagPill from "@/components/TagPill";
 import Link from "next/link";
 import type { Block } from "@/lib/types";
-import { contrastText } from "@/lib/color";
 
 function EditIcon() {
   return (
@@ -148,19 +148,10 @@ export default function PostPage() {
           <time>{new Date(post.createdAt).toLocaleDateString("en-US")}</time>
         </div>
         {post.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-6">
-            {post.tags.map((t) => {
-              const color = t.color ?? tagColors.get(t.name) ?? null;
-              return (
-                <span
-                  key={t.id}
-                  className={`text-xs px-2 py-0.5 rounded-full ${color ? "" : "text-neutral-500 bg-neutral-800"}`}
-                  style={color ? { backgroundColor: color, color: contrastText(color) } : undefined}
-                >
-                  #{t.name}
-                </span>
-              );
-            })}
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mb-6">
+            {post.tags.map((t) => (
+              <TagPill key={t.id} name={t.name} color={t.color ?? tagColors.get(t.name) ?? null} />
+            ))}
           </div>
         )}
 

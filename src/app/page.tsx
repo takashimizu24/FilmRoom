@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { Block } from "@/lib/types";
 import { YouTubePlayer, UploadedVideo } from "@/components/VideoPlayer";
 import GroupBadge, { FolderIcon } from "@/components/GroupBadge";
+import TagPill from "@/components/TagPill";
 import { contrastText } from "@/lib/color";
 
 interface Tag {
@@ -45,17 +46,6 @@ function getMediaCounts(blocks: Block[]) {
 
 function isMedia(block: Block): boolean {
   return block.type === "video" || block.type === "image" || block.type === "youtube";
-}
-
-function TagPill({ name, color }: { name: string; color?: string | null }) {
-  return (
-    <span
-      className={`text-xs px-2 py-0.5 rounded-full ${color ? "" : "bg-neutral-800 text-neutral-500"}`}
-      style={color ? { backgroundColor: color, color: contrastText(color) } : undefined}
-    >
-      #{name}
-    </span>
-  );
 }
 
 function MediaTagList({ tags, colorMap }: { tags?: string[]; colorMap: Map<string, string | null> }) {
