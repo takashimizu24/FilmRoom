@@ -106,6 +106,19 @@ function formatTime(seconds: number) {
     : `${mm}:${s.toString().padStart(2, "0")}`;
 }
 
+// Internal label for the media, hidden in the post but shown in the Reuse picker.
+function CaptionInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Caption (only shown when reusing)"
+      className="w-full mt-2 px-3 py-1.5 border border-neutral-700 rounded-lg text-xs text-neutral-100 bg-neutral-800 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+    />
+  );
+}
+
 export default function BlockEditor({
   blocks,
   onChange,
@@ -126,14 +139,16 @@ export default function BlockEditor({
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Insert a block that reuses existing media (same url) — no re-upload.
+  // Insert a block that reuses existing media (same url) — no re-upload. The
+  // caption is carried over so the clip stays identifiable when reused again.
   function insertExistingMedia(item: MediaItem) {
+    const caption = item.caption?.trim() || undefined;
     const block: Block =
       item.type === "video"
-        ? { type: "video", url: item.url, tags: [] }
+        ? { type: "video", url: item.url, tags: [], caption }
         : item.type === "image"
-        ? { type: "image", url: item.url, tags: [] }
-        : { type: "youtube", url: item.url, startTime: 0, endTime: 0, tags: [] };
+        ? { type: "image", url: item.url, tags: [], caption }
+        : { type: "youtube", url: item.url, startTime: 0, endTime: 0, tags: [], caption };
     onChange([...blocks, block]);
     setPickerOpen(false);
   }
@@ -373,6 +388,10 @@ export default function BlockEditor({
                 </button>
               </div>
               <img src={block.url} alt="" className="max-h-64 rounded-lg" />
+              <CaptionInput
+                value={block.caption ?? ""}
+                onChange={(v) => updateBlock(i, { ...block, caption: v })}
+              />
               <MediaTags
                 tags={block.tags ?? []}
                 onChange={(tags) => updateBlock(i, { ...block, tags })}
@@ -395,6 +414,10 @@ export default function BlockEditor({
                 </button>
               </div>
               <video src={block.url} controls playsInline className="max-h-64 rounded-lg" />
+              <CaptionInput
+                value={block.caption ?? ""}
+                onChange={(v) => updateBlock(i, { ...block, caption: v })}
+              />
               <MediaTags
                 tags={block.tags ?? []}
                 onChange={(tags) => updateBlock(i, { ...block, tags })}
@@ -430,6 +453,10 @@ export default function BlockEditor({
                   </span>
                 ) : null}
               </div>
+              <CaptionInput
+                value={block.caption ?? ""}
+                onChange={(v) => updateBlock(i, { ...block, caption: v })}
+              />
               <MediaTags
                 tags={block.tags ?? []}
                 onChange={(tags) => updateBlock(i, { ...block, tags })}

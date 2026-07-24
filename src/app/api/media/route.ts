@@ -28,7 +28,14 @@ export async function GET(request: NextRequest) {
   });
 
   const seen = new Set<string>();
-  const items: { type: "video" | "image" | "youtube"; url: string; postTitle: string }[] = [];
+  const items: {
+    type: "video" | "image" | "youtube";
+    url: string;
+    postTitle: string;
+    caption: string;
+  }[] = [];
+  // Newest-first: the first occurrence of each url wins, so its caption is the
+  // most recently set one.
   for (const post of posts) {
     for (const b of parseBlocks(post.blocks)) {
       if (b.type !== "video" && b.type !== "image" && b.type !== "youtube") continue;
@@ -36,7 +43,7 @@ export async function GET(request: NextRequest) {
       const key = `${b.type}|${b.url}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      items.push({ type: b.type, url: b.url, postTitle: post.title });
+      items.push({ type: b.type, url: b.url, postTitle: post.title, caption: b.caption ?? "" });
     }
   }
 
