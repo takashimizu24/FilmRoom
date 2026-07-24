@@ -170,10 +170,10 @@ export default function BlockEditor({
       }
     }
 
-    const MAX_UPLOAD_BYTES = 300 * 1024 * 1024; // 300MB — larger videos should use a YouTube link instead
+    const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500MB — trim longer footage into shorter clips
     if (file.size > MAX_UPLOAD_BYTES) {
       alert(
-        "This video is too large to upload directly (over 300MB). Please upload it to YouTube and add it as a YouTube clip instead."
+        "This file is too large (over 500MB). Please trim it into shorter clips before uploading."
       );
       setUploading(null);
       setPendingInsertIndex(null);
