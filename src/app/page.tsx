@@ -6,7 +6,7 @@ import Link from "next/link";
 import type { Block } from "@/lib/types";
 import { YouTubePlayer, UploadedVideo } from "@/components/VideoPlayer";
 import GroupBadge, { FolderIcon } from "@/components/GroupBadge";
-import TagPill from "@/components/TagPill";
+import TagList from "@/components/TagList";
 import { contrastText } from "@/lib/color";
 
 interface Tag {
@@ -51,10 +51,8 @@ function isMedia(block: Block): boolean {
 function MediaTagList({ tags, colorMap }: { tags?: string[]; colorMap: Map<string, string | null> }) {
   if (!tags || tags.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-1.5 mt-2">
-      {tags.map((t) => (
-        <TagPill key={t} name={t} color={colorMap.get(t) ?? null} />
-      ))}
+    <div className="mt-2">
+      <TagList tags={tags.map((t) => ({ name: t, color: colorMap.get(t) ?? null }))} max={3} />
     </div>
   );
 }
@@ -326,9 +324,15 @@ export default function HomePage() {
                   {videos > 0 && <span>🎬 {videos}</span>}
                   {images > 0 && <span>🖼 {images}</span>}
                   {post._count.messages > 0 && <span>💬 {post._count.messages}</span>}
-                  {post.tags.map((t) => (
-                    <TagPill key={t.id} name={t.name} color={t.color ?? colorMap.get(t.name) ?? null} />
-                  ))}
+                  {post.tags.length > 0 && (
+                    <TagList
+                      tags={post.tags.map((t) => ({
+                        name: t.name,
+                        color: t.color ?? colorMap.get(t.name) ?? null,
+                      }))}
+                      max={2}
+                    />
+                  )}
                 </div>
               </Link>
             );

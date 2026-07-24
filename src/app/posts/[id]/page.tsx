@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import BlockRenderer from "@/components/BlockRenderer";
 import Chat from "@/components/Chat";
 import GroupBadge from "@/components/GroupBadge";
-import TagPill from "@/components/TagPill";
+import TagList from "@/components/TagList";
 import Link from "next/link";
 import type { Block } from "@/lib/types";
 
@@ -148,10 +148,14 @@ export default function PostPage() {
           <time>{new Date(post.createdAt).toLocaleDateString("en-US")}</time>
         </div>
         {post.tags.length > 0 && (
-          <div className="flex flex-wrap gap-x-3 gap-y-1 mb-6">
-            {post.tags.map((t) => (
-              <TagPill key={t.id} name={t.name} color={t.color ?? tagColors.get(t.name) ?? null} />
-            ))}
+          <div className="mb-6">
+            <TagList
+              tags={post.tags.map((t) => ({
+                name: t.name,
+                color: t.color ?? tagColors.get(t.name) ?? null,
+              }))}
+              max={4}
+            />
           </div>
         )}
 

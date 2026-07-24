@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Block } from "@/lib/types";
 import { YouTubePlayer, UploadedVideo } from "./VideoPlayer";
-import TagPill from "./TagPill";
+import TagList from "./TagList";
 
 function TextBlock({ content }: { content: string }) {
   const [translated, setTranslated] = useState<string | null>(null);
@@ -71,10 +71,8 @@ function MediaTagList({
 }) {
   if (!tags || tags.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
-      {tags.map((t) => (
-        <TagPill key={t} name={t} color={colors?.get(t) ?? null} />
-      ))}
+    <div className="mt-2">
+      <TagList tags={tags.map((t) => ({ name: t, color: colors?.get(t) ?? null }))} max={3} />
     </div>
   );
 }
