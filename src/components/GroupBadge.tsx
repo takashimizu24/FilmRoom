@@ -28,7 +28,7 @@ export default function GroupBadge({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md font-medium ${className}`}
+      className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md font-medium whitespace-nowrap shrink-0 ${className}`}
       style={
         group.color
           ? { backgroundColor: group.color, color: contrastText(group.color) }
@@ -36,7 +36,7 @@ export default function GroupBadge({
       }
     >
       <FolderIcon />
-      {group.name}
+      <span className="truncate max-w-[10rem]">{group.name}</span>
     </span>
   );
 }

@@ -3,12 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 
 export function extractYoutubeId(url: string): string | null {
+  if (!url) return null;
+  const u = url.trim();
+  // A YouTube video id is 11 chars of [A-Za-z0-9_-]. Cover every share format:
+  // watch?v= (v may not be the first param), youtu.be/, embed/, shorts/, v/, and
+  // live/ (used by the YouTube app when sharing live streams / premieres).
   const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?]+)/,
-    /youtube\.com\/shorts\/([^&\s?]+)/,
+    /youtu\.be\/([A-Za-z0-9_-]{11})/,
+    /youtube\.com\/(?:embed|shorts|live|v)\/([A-Za-z0-9_-]{11})/,
+    /youtube\.com\/watch\?(?:[^#]*&)?v=([A-Za-z0-9_-]{11})/,
   ];
   for (const pattern of patterns) {
-    const match = url.match(pattern);
+    const match = u.match(pattern);
     if (match) return match[1];
   }
   return null;

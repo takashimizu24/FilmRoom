@@ -273,15 +273,18 @@ export default function HomePage() {
               <div key={key} className="bg-neutral-900 rounded-xl border border-neutral-800 p-4">
                 <MediaBlock block={block} />
                 <MediaTagList tags={"tags" in block ? block.tags : undefined} colorMap={colorMap} />
-                <div className="flex items-center gap-2 text-xs text-neutral-500 mt-3">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-500 mt-3">
                   {post.group && <GroupBadge group={post.group} />}
-                  <Link href={`/posts/${post.id}`} className="text-neutral-400 hover:text-neutral-200 transition truncate">
+                  <Link
+                    href={`/posts/${post.id}`}
+                    className="text-neutral-400 hover:text-neutral-200 transition truncate min-w-0 max-w-full"
+                  >
                     {post.title}
                   </Link>
-                  <span>·</span>
-                  <span>{post.author.name}</span>
-                  <span>·</span>
-                  <time>{new Date(post.createdAt).toLocaleDateString("en-US")}</time>
+                  <span className="whitespace-nowrap">· {post.author.name}</span>
+                  <time className="whitespace-nowrap">
+                    · {new Date(post.createdAt).toLocaleDateString("en-US")}
+                  </time>
                 </div>
               </div>
             ))}
