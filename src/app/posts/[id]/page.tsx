@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import BlockRenderer from "@/components/BlockRenderer";
 import Chat from "@/components/Chat";
@@ -9,6 +9,32 @@ import GroupBadge from "@/components/GroupBadge";
 import Link from "next/link";
 import type { Block } from "@/lib/types";
 import { contrastText } from "@/lib/color";
+
+function EditIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v12" />
+      <path d="m7 8 5-5 5 5" />
+      <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="m5 12 5 5L20 7" />
+    </svg>
+  );
+}
 
 interface Post {
   id: string;
@@ -24,14 +50,12 @@ interface Post {
 
 export default function PostPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params.id as string;
   const { data: session } = useSession();
   const [post, setPost] = useState<Post | null>(null);
   const [tagColors, setTagColors] = useState<Map<string, string | null>>(new Map());
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch(`/api/posts/${id}`)
@@ -67,22 +91,6 @@ export default function PostPage() {
     }
   }
 
-  function handleExportPDF() {
-    window.print();
-  }
-
-  async function handleDelete() {
-    if (!confirm("Delete this post? This cannot be undone.")) return;
-    setDeleting(true);
-    const res = await fetch(`/api/posts/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      router.push("/");
-    } else {
-      setDeleting(false);
-      alert("Failed to delete the post. Please try again.");
-    }
-  }
-
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12 text-center text-neutral-500">
@@ -107,33 +115,22 @@ export default function PostPage() {
         </Link>
         <div className="flex gap-2">
           {session?.user?.id === post.authorId && (
-            <>
-              <Link
-                href={`/posts/${post.id}/edit`}
-                className="flex items-center gap-1.5 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-sm text-neutral-300 transition"
-              >
-                Edit
-              </Link>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex items-center gap-1.5 px-4 py-2 bg-neutral-800 hover:bg-red-900 rounded-lg text-sm text-neutral-300 hover:text-red-200 transition disabled:opacity-50"
-              >
-                {deleting ? "Deleting..." : "Delete"}
-              </button>
-            </>
+            <Link
+              href={`/posts/${post.id}/edit`}
+              aria-label="Edit"
+              title="Edit"
+              className="flex items-center justify-center w-10 h-10 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-neutral-300 transition"
+            >
+              <EditIcon />
+            </Link>
           )}
           <button
             onClick={handleShare}
-            className="flex items-center gap-1.5 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-neutral-100 rounded-lg text-sm transition"
+            aria-label={copied ? "Copied" : "Share"}
+            title={copied ? "Copied" : "Share"}
+            className="flex items-center justify-center w-10 h-10 bg-neutral-700 hover:bg-neutral-600 text-neutral-100 rounded-lg transition"
           >
-            {copied ? "Copied" : "Share"}
-          </button>
-          <button
-            onClick={handleExportPDF}
-            className="flex items-center gap-1.5 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-sm text-neutral-300 transition"
-          >
-            PDF
+            {copied ? <CheckIcon /> : <ShareIcon />}
           </button>
         </div>
       </div>

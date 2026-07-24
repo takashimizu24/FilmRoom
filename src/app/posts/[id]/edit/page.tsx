@@ -23,6 +23,7 @@ export default function EditPostPage() {
   const [groupId, setGroupId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -87,6 +88,18 @@ export default function EditPostPage() {
 
     router.push(`/posts/${id}`);
     router.refresh();
+  }
+
+  async function handleDelete() {
+    if (!confirm("Delete this post? This cannot be undone.")) return;
+    setDeleting(true);
+    const res = await fetch(`/api/posts/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      router.push("/");
+    } else {
+      setDeleting(false);
+      alert("Failed to delete the post. Please try again.");
+    }
   }
 
   if (status === "loading" || loading) {
@@ -214,6 +227,17 @@ export default function EditPostPage() {
           >
             Cancel
           </Link>
+        </div>
+
+        <div className="pt-4 border-t border-neutral-800">
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="w-full px-4 py-2.5 bg-neutral-900 hover:bg-red-900 border border-neutral-800 hover:border-red-800 rounded-lg text-sm text-neutral-500 hover:text-red-200 transition disabled:opacity-50"
+          >
+            {deleting ? "Deleting..." : "Delete this post"}
+          </button>
         </div>
       </form>
     </div>

@@ -33,11 +33,6 @@ interface Post {
   _count: { messages: number };
 }
 
-function getSummary(blocks: Block[]): string {
-  const textBlock = blocks.find((b) => b.type === "text" && b.content.trim());
-  return textBlock?.type === "text" ? textBlock.content : "";
-}
-
 function getMediaCounts(blocks: Block[]) {
   let videos = 0;
   let images = 0;
@@ -384,7 +379,6 @@ export default function HomePage() {
       ) : (
         <div className="space-y-4">
           {filteredPosts.map((post) => {
-            const summary = getSummary(post.blocks);
             const { videos, images } = getMediaCounts(post.blocks);
             return (
               <Link
@@ -398,9 +392,6 @@ export default function HomePage() {
                     {post.title}
                   </h2>
                 </div>
-                {summary && (
-                  <p className="text-sm text-neutral-400 line-clamp-2 mb-3">{summary}</p>
-                )}
                 {post.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {post.tags.map((t) => (
