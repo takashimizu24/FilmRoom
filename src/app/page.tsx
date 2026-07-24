@@ -321,28 +321,24 @@ export default function HomePage() {
               <Link
                 key={post.id}
                 href={`/posts/${post.id}`}
-                className="block bg-neutral-900 rounded-xl border border-neutral-800 p-5 hover:border-neutral-600 transition"
+                className="block bg-neutral-900 rounded-xl border border-neutral-800 p-4 hover:border-neutral-600 transition"
               >
-                <div className="flex items-start gap-2 mb-1">
-                  {post.group && <span className="mt-1 shrink-0"><GroupBadge group={post.group} /></span>}
-                  <h2 className="text-lg font-semibold text-neutral-100 truncate">
+                <div className="flex items-start gap-2 mb-1.5">
+                  {post.group && <span className="mt-0.5 shrink-0"><GroupBadge group={post.group} /></span>}
+                  <h2 className="text-base font-semibold text-neutral-100 truncate">
                     {post.title}
                   </h2>
                 </div>
-                {post.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {post.tags.map((t) => (
-                      <TagPill key={t.id} name={t.name} color={t.color ?? colorMap.get(t.name) ?? null} />
-                    ))}
-                  </div>
-                )}
-                <div className="flex items-center gap-3 text-xs text-neutral-500">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-500">
                   <span>{post.author.name}</span>
                   <span>·</span>
                   <time>{new Date(post.createdAt).toLocaleDateString("en-US")}</time>
                   {videos > 0 && <span>🎬 {videos}</span>}
                   {images > 0 && <span>🖼 {images}</span>}
                   {post._count.messages > 0 && <span>💬 {post._count.messages}</span>}
+                  {post.tags.map((t) => (
+                    <TagPill key={t.id} name={t.name} color={t.color ?? colorMap.get(t.name) ?? null} />
+                  ))}
                 </div>
               </Link>
             );

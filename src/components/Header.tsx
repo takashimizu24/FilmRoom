@@ -31,6 +31,11 @@ const GearIcon = () => (
 export default function Header() {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const [activeTagParam, setActiveTagParam] = useState("");
+
+  useEffect(() => {
+    setActiveTagParam(new URLSearchParams(window.location.search).get("tag") ?? "");
+  }, [pathname]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
   const [tags, setTags] = useState<TagCount[]>([]);
@@ -77,7 +82,10 @@ export default function Header() {
   }
 
   function handleTagSearch(name: string) {
-    if (name) window.location.href = `/?tag=${encodeURIComponent(name)}`;
+    if (!name) return;
+    // Picking the tag that's already the active filter resets it instead of re-applying it.
+    const alreadyActive = pathname === "/" && activeTagParam === name;
+    window.location.href = alreadyActive ? "/" : `/?tag=${encodeURIComponent(name)}`;
   }
 
   return (
