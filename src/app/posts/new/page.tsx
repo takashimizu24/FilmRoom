@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import BlockEditor from "@/components/BlockEditor";
 import TagAutocomplete from "@/components/TagAutocomplete";
+import type { MediaItem } from "@/components/MediaPicker";
 import type { Block } from "@/lib/types";
 
 interface Team {
@@ -30,6 +31,7 @@ export default function NewPostPage() {
   const [blocks, setBlocks] = useState<Block[]>([{ type: "text", content: "" }]);
   const [tags, setTags] = useState<string[]>([]);
   const [tagSuggestions, setTagSuggestions] = useState<TagSuggestion[]>([]);
+  const [mediaLibrary, setMediaLibrary] = useState<MediaItem[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamId, setTeamId] = useState<string>("");
   const [groups, setGroups] = useState<Group[]>([]);
@@ -62,6 +64,10 @@ export default function NewPostPage() {
         setTagSuggestions(Array.isArray(data) ? data.map((t) => ({ name: t.name, color: t.color })) : [])
       )
       .catch(() => setTagSuggestions([]));
+    fetch(`/api/media?teamId=${teamId}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: MediaItem[]) => setMediaLibrary(Array.isArray(data) ? data : []))
+      .catch(() => setMediaLibrary([]));
   }, [teamId]);
 
   if (!session) {
@@ -205,7 +211,12 @@ export default function NewPostPage() {
         <div>
           <label className="block text-sm font-medium text-neutral-400 mb-2">Content</label>
           <div className="pl-10">
-            <BlockEditor blocks={blocks} onChange={setBlocks} tagSuggestions={tagSuggestions} />
+            <BlockEditor
+              blocks={blocks}
+              onChange={setBlocks}
+              tagSuggestions={tagSuggestions}
+              mediaLibrary={mediaLibrary}
+            />
           </div>
         </div>
 

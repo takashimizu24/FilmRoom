@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import type { Block } from "@/lib/types";
 import TagAutocomplete from "./TagAutocomplete";
+import MediaPicker, { type MediaItem } from "./MediaPicker";
 
 type TagSuggestion = { name: string; color?: string | null };
 
@@ -109,10 +110,12 @@ export default function BlockEditor({
   blocks,
   onChange,
   tagSuggestions = [],
+  mediaLibrary = [],
 }: {
   blocks: Block[];
   onChange: (blocks: Block[]) => void;
   tagSuggestions?: TagSuggestion[];
+  mediaLibrary?: MediaItem[];
 }) {
   const [uploading, setUploading] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -121,6 +124,19 @@ export default function BlockEditor({
   const [pendingInsertIndex, setPendingInsertIndex] = useState<number | null>(null);
   const [pendingInsertType, setPendingInsertType] = useState<"video" | "image" | null>(null);
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Insert a block that reuses existing media (same url) — no re-upload.
+  function insertExistingMedia(item: MediaItem) {
+    const block: Block =
+      item.type === "video"
+        ? { type: "video", url: item.url, tags: [] }
+        : item.type === "image"
+        ? { type: "image", url: item.url, tags: [] }
+        : { type: "youtube", url: item.url, startTime: 0, endTime: 0, tags: [] };
+    onChange([...blocks, block]);
+    setPickerOpen(false);
+  }
 
   function updateBlock(index: number, updated: Block) {
     const next = [...blocks];
@@ -429,7 +445,7 @@ export default function BlockEditor({
       )}
 
       {/* Add block buttons */}
-      <div className="flex gap-2 pt-2">
+      <div className="flex flex-wrap gap-2 pt-2">
         <button
           type="button"
           onClick={() => addBlock("text")}
@@ -458,7 +474,24 @@ export default function BlockEditor({
         >
           <span className="text-base">▶</span> YouTube
         </button>
+        {mediaLibrary.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-sm text-neutral-300 transition"
+          >
+            <span className="text-base">♻</span> Reuse
+          </button>
+        )}
       </div>
+
+      {pickerOpen && (
+        <MediaPicker
+          items={mediaLibrary}
+          onPick={insertExistingMedia}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }

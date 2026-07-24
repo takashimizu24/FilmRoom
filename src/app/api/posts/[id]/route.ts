@@ -6,16 +6,30 @@ import { r2KeyFromUrl, deleteR2Objects } from "@/lib/r2";
 import type { Block } from "@/lib/types";
 import { NextRequest } from "next/server";
 
-// R2 object keys referenced by a post's media blocks (skips non-R2 URLs).
-function r2KeysFromBlocks(blocks: Block[]): string[] {
-  const keys: string[] = [];
+// R2 media (public URL + object key) referenced by a post's blocks, skipping
+// non-R2 URLs (YouTube, legacy /uploads).
+function r2MediaFromBlocks(blocks: Block[]): { url: string; key: string }[] {
+  const out: { url: string; key: string }[] = [];
   for (const b of blocks) {
     if (b.type === "video" || b.type === "image") {
       const key = r2KeyFromUrl(b.url);
-      if (key) keys.push(key);
+      if (key) out.push({ url: b.url, key });
     }
   }
-  return keys;
+  return out;
+}
+
+// Delete R2 objects only when no post still references them. The same uploaded
+// file can be reused across several posts (shared URL), so a file must survive
+// until the last post using it is gone. Call AFTER the DB write so the current
+// post's own (removed) reference is no longer counted.
+async function deleteUnreferencedR2(media: { url: string; key: string }[]) {
+  const orphaned: string[] = [];
+  for (const { url, key } of media) {
+    const refs = await prisma.post.count({ where: { blocks: { contains: url } } });
+    if (refs === 0) orphaned.push(key);
+  }
+  await deleteR2Objects(orphaned);
 }
 
 export async function GET(
@@ -117,12 +131,12 @@ export async function PATCH(
     include: { tags: true, group: true },
   });
 
-  // Reclaim storage: delete R2 files that were removed or replaced in this edit
-  // (i.e. present before but no longer referenced by the saved blocks).
-  const oldKeys = r2KeysFromBlocks(parseBlocks(existing.blocks));
-  const newKeys = new Set(r2KeysFromBlocks(blocks as Block[]));
-  const removedKeys = oldKeys.filter((key) => !newKeys.has(key));
-  await deleteR2Objects(removedKeys);
+  // Reclaim storage: delete R2 files removed or replaced in this edit, but only
+  // if no other post still references them (shared uploads stay).
+  const oldMedia = r2MediaFromBlocks(parseBlocks(existing.blocks));
+  const newUrls = new Set(r2MediaFromBlocks(blocks as Block[]).map((m) => m.url));
+  const removed = oldMedia.filter((m) => !newUrls.has(m.url));
+  await deleteUnreferencedR2(removed);
 
   return Response.json(post);
 }
@@ -148,10 +162,12 @@ export async function DELETE(
     return Response.json({ error: "Only the author can delete this post" }, { status: 403 });
   }
 
+  const media = r2MediaFromBlocks(parseBlocks(existing.blocks));
   await prisma.post.delete({ where: { id } });
 
-  // Reclaim storage: remove the post's uploaded media from R2.
-  await deleteR2Objects(r2KeysFromBlocks(parseBlocks(existing.blocks)));
+  // Reclaim storage: remove this post's uploaded media from R2, unless another
+  // post still uses the same file.
+  await deleteUnreferencedR2(media);
 
   return Response.json({ ok: true });
 }

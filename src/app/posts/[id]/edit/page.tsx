@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import BlockEditor from "@/components/BlockEditor";
 import TagAutocomplete from "@/components/TagAutocomplete";
+import type { MediaItem } from "@/components/MediaPicker";
 import type { Block } from "@/lib/types";
 
 interface TagSuggestion {
@@ -25,6 +26,7 @@ export default function EditPostPage() {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [tagSuggestions, setTagSuggestions] = useState<TagSuggestion[]>([]);
+  const [mediaLibrary, setMediaLibrary] = useState<MediaItem[]>([]);
   const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
   const [groupId, setGroupId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
@@ -57,6 +59,10 @@ export default function EditPostPage() {
                 setTagSuggestions(Array.isArray(ts) ? ts.map((t) => ({ name: t.name, color: t.color })) : [])
               )
               .catch(() => setTagSuggestions([]));
+            fetch(`/api/media?teamId=${data.teamId}`)
+              .then((r) => (r.ok ? r.json() : []))
+              .then((ms: MediaItem[]) => setMediaLibrary(Array.isArray(ms) ? ms : []))
+              .catch(() => setMediaLibrary([]));
           }
         }
         setLoading(false);
@@ -203,7 +209,12 @@ export default function EditPostPage() {
         <div>
           <label className="block text-sm font-medium text-neutral-400 mb-2">Content</label>
           <div className="pl-10">
-            <BlockEditor blocks={blocks} onChange={setBlocks} tagSuggestions={tagSuggestions} />
+            <BlockEditor
+              blocks={blocks}
+              onChange={setBlocks}
+              tagSuggestions={tagSuggestions}
+              mediaLibrary={mediaLibrary}
+            />
           </div>
         </div>
 

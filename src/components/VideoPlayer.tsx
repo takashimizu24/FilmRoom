@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-function extractYoutubeId(url: string): string | null {
+export function extractYoutubeId(url: string): string | null {
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?]+)/,
     /youtube\.com\/shorts\/([^&\s?]+)/,
