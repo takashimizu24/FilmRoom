@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import BlockEditor from "@/components/BlockEditor";
+import TagAutocomplete from "@/components/TagAutocomplete";
 import type { Block } from "@/lib/types";
 
 interface Team {
@@ -17,13 +18,18 @@ interface Group {
   color: string | null;
 }
 
+interface TagSuggestion {
+  name: string;
+  color: string | null;
+}
+
 export default function NewPostPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [blocks, setBlocks] = useState<Block[]>([{ type: "text", content: "" }]);
-  const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [tagSuggestions, setTagSuggestions] = useState<TagSuggestion[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamId, setTeamId] = useState<string>("");
   const [groups, setGroups] = useState<Group[]>([]);
@@ -50,6 +56,12 @@ export default function NewPostPage() {
         setGroups(Array.isArray(data) ? data : []);
         setGroupId((prev) => (data.some((g) => g.id === prev) ? prev : ""));
       });
+    fetch(`/api/tags?teamId=${teamId}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: TagSuggestion[]) =>
+        setTagSuggestions(Array.isArray(data) ? data.map((t) => ({ name: t.name, color: t.color })) : [])
+      )
+      .catch(() => setTagSuggestions([]));
   }, [teamId]);
 
   if (!session) {
@@ -58,14 +70,6 @@ export default function NewPostPage() {
         Please log in to post
       </div>
     );
-  }
-
-  function addTag() {
-    const value = tagInput.trim();
-    if (value && !tags.includes(value)) {
-      setTags([...tags, value]);
-    }
-    setTagInput("");
   }
 
   function removeTag(tag: string) {
@@ -167,27 +171,15 @@ export default function NewPostPage() {
 
         <div>
           <label className="block text-sm font-medium text-neutral-400 mb-1">Tags</label>
-          <div className="flex gap-2 mb-2">
-            <input
-              type="text"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === ",") {
-                  e.preventDefault();
-                  addTag();
-                }
+          <div className="mb-2">
+            <TagAutocomplete
+              onAdd={(name) => {
+                if (!tags.includes(name)) setTags([...tags, name]);
               }}
+              suggestions={tagSuggestions}
+              existing={tags}
               placeholder="e.g. offense, Q3"
-              className="flex-1 px-4 py-2 border border-neutral-700 rounded-lg text-neutral-100 bg-neutral-800 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
             />
-            <button
-              type="button"
-              onClick={addTag}
-              className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-sm text-neutral-300 transition"
-            >
-              Add
-            </button>
           </div>
           {tags.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -213,7 +205,7 @@ export default function NewPostPage() {
         <div>
           <label className="block text-sm font-medium text-neutral-400 mb-2">Content</label>
           <div className="pl-10">
-            <BlockEditor blocks={blocks} onChange={setBlocks} />
+            <BlockEditor blocks={blocks} onChange={setBlocks} tagSuggestions={tagSuggestions} />
           </div>
         </div>
 

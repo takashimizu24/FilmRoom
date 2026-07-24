@@ -2,6 +2,9 @@
 
 import { useState, useRef } from "react";
 import type { Block } from "@/lib/types";
+import TagAutocomplete from "./TagAutocomplete";
+
+type TagSuggestion = { name: string; color?: string | null };
 
 function TimeInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   const hours = Math.floor(value / 3600);
@@ -48,39 +51,27 @@ function TimeInput({ label, value, onChange }: { label: string; value: number; o
   );
 }
 
-function MediaTags({ tags, onChange }: { tags: string[]; onChange: (tags: string[]) => void }) {
-  const [input, setInput] = useState("");
-
-  function addTag() {
-    const value = input.trim();
-    if (value && !tags.includes(value)) onChange([...tags, value]);
-    setInput("");
-  }
-
+function MediaTags({
+  tags,
+  onChange,
+  suggestions,
+}: {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+  suggestions: TagSuggestion[];
+}) {
   return (
     <div className="mt-2">
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === ",") {
-              e.preventDefault();
-              addTag();
-            }
-          }}
-          placeholder="Add a tag..."
-          className="flex-1 px-3 py-1.5 border border-neutral-700 rounded-lg text-xs text-neutral-100 bg-neutral-800 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
-        />
-        <button
-          type="button"
-          onClick={addTag}
-          className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-xs text-neutral-300 transition border border-neutral-700"
-        >
-          Add Tag
-        </button>
-      </div>
+      <TagAutocomplete
+        onAdd={(name) => {
+          if (!tags.includes(name)) onChange([...tags, name]);
+        }}
+        suggestions={suggestions}
+        existing={tags}
+        placeholder="Add a tag..."
+        size="sm"
+        buttonLabel="Add Tag"
+      />
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-2">
           {tags.map((tag) => (
@@ -117,9 +108,11 @@ function formatTime(seconds: number) {
 export default function BlockEditor({
   blocks,
   onChange,
+  tagSuggestions = [],
 }: {
   blocks: Block[];
   onChange: (blocks: Block[]) => void;
+  tagSuggestions?: TagSuggestion[];
 }) {
   const [uploading, setUploading] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -367,6 +360,7 @@ export default function BlockEditor({
               <MediaTags
                 tags={block.tags ?? []}
                 onChange={(tags) => updateBlock(i, { ...block, tags })}
+                suggestions={tagSuggestions}
               />
             </div>
           )}
@@ -388,6 +382,7 @@ export default function BlockEditor({
               <MediaTags
                 tags={block.tags ?? []}
                 onChange={(tags) => updateBlock(i, { ...block, tags })}
+                suggestions={tagSuggestions}
               />
             </div>
           )}
@@ -422,6 +417,7 @@ export default function BlockEditor({
               <MediaTags
                 tags={block.tags ?? []}
                 onChange={(tags) => updateBlock(i, { ...block, tags })}
+                suggestions={tagSuggestions}
               />
             </div>
           )}
