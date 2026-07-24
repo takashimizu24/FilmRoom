@@ -27,6 +27,18 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* iOS Safari auto-zooms when focusing a form control whose font-size is under
+   16px, and never zooms back out. Force at least 16px on touch-sized screens so
+   focusing an input never triggers that zoom (layout stays put during typing).
+   !important is needed to win over Tailwind's text-sm/text-xs utilities. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 @media print {
   :root {
     color-scheme: light;
