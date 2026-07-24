@@ -95,7 +95,7 @@ export default function Header() {
                   value=""
                   onChange={(e) => handleTagSearch(e.target.value)}
                   aria-label="Search by tag"
-                  className="bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-300 px-2 py-1.5 focus:ring-2 focus:ring-neutral-500 focus:border-transparent shrink-0 max-w-[7.5rem]"
+                  className="h-9 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-300 px-2 focus:ring-2 focus:ring-neutral-500 focus:border-transparent shrink-0 max-w-[7.5rem]"
                 >
                   <option value="" disabled>
                     🔍 Tags
@@ -110,7 +110,8 @@ export default function Header() {
 
               <Link
                 href="/posts/new"
-                className="bg-neutral-700 text-neutral-100 pl-2.5 pr-3 py-1.5 rounded-lg text-sm hover:bg-neutral-600 transition inline-flex items-center gap-1.5 shrink-0"
+                aria-label="New Post"
+                className="bg-neutral-700 text-neutral-100 h-9 w-9 sm:w-auto sm:pl-2.5 sm:pr-3 rounded-lg text-sm hover:bg-neutral-600 transition inline-flex items-center justify-center sm:justify-start gap-1.5 shrink-0"
               >
                 <PlusIcon />
                 <span className="hidden sm:inline">New Post</span>

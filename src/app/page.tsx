@@ -265,69 +265,6 @@ export default function HomePage() {
           placeholder="Search by title..."
           className="w-full px-4 py-2 border border-neutral-700 rounded-lg text-sm text-neutral-100 bg-neutral-800 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
         />
-
-        {/* Tag chips */}
-        {tags.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setActiveTags([])}
-              className={`px-3 py-1 rounded-full text-xs transition ${
-                activeTags.length === 0
-                  ? "bg-neutral-200 text-neutral-900"
-                  : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
-              }`}
-            >
-              All Posts
-            </button>
-            {tags.map((tag) => {
-              const selected = activeTags.includes(tag.name);
-              return (
-                <button
-                  key={tag.name}
-                  onClick={() => toggleTag(tag.name)}
-                  aria-pressed={selected}
-                  style={tag.color ? { backgroundColor: tag.color, color: contrastText(tag.color) } : undefined}
-                  className={`px-3 py-1 rounded-full text-xs transition ${
-                    selected ? "ring-2 ring-neutral-100 ring-offset-1 ring-offset-neutral-950" : ""
-                  } ${tag.color ? "" : selected ? "bg-neutral-200 text-neutral-900" : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"}`}
-                >
-                  {selected ? "✓ " : ""}#{tag.name} ({tag.count})
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {activeTags.length >= 2 && (
-          <div className="flex items-center gap-2 text-xs text-neutral-400">
-            <span>Match:</span>
-            <div className="inline-flex rounded-lg border border-neutral-700 overflow-hidden">
-              <button
-                onClick={() => setMatchMode("and")}
-                className={`px-3 py-1 transition ${
-                  matchMode === "and"
-                    ? "bg-neutral-200 text-neutral-900"
-                    : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
-                }`}
-              >
-                All tags
-              </button>
-              <button
-                onClick={() => setMatchMode("or")}
-                className={`px-3 py-1 transition border-l border-neutral-700 ${
-                  matchMode === "or"
-                    ? "bg-neutral-200 text-neutral-900"
-                    : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
-                }`}
-              >
-                Any tag
-              </button>
-            </div>
-            <span className="text-neutral-600">
-              {matchMode === "and" ? "(match every tag)" : "(match any tag)"}
-            </span>
-          </div>
-        )}
       </div>
 
       {activeTags.length > 0 ? (
@@ -410,6 +347,71 @@ export default function HomePage() {
               </Link>
             );
           })}
+        </div>
+      )}
+
+      {/* Tag list — placed below the post list */}
+      {tags.length > 0 && (
+        <div className="mt-8 pt-6 border-t border-neutral-800 space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setActiveTags([])}
+              className={`px-3 py-1 rounded-full text-xs transition ${
+                activeTags.length === 0
+                  ? "bg-neutral-200 text-neutral-900"
+                  : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
+              }`}
+            >
+              All Posts
+            </button>
+            {tags.map((tag) => {
+              const selected = activeTags.includes(tag.name);
+              return (
+                <button
+                  key={tag.name}
+                  onClick={() => toggleTag(tag.name)}
+                  aria-pressed={selected}
+                  style={tag.color ? { backgroundColor: tag.color, color: contrastText(tag.color) } : undefined}
+                  className={`px-3 py-1 rounded-full text-xs transition ${
+                    selected ? "ring-2 ring-neutral-100 ring-offset-1 ring-offset-neutral-950" : ""
+                  } ${tag.color ? "" : selected ? "bg-neutral-200 text-neutral-900" : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"}`}
+                >
+                  {selected ? "✓ " : ""}#{tag.name} ({tag.count})
+                </button>
+              );
+            })}
+          </div>
+
+          {activeTags.length >= 2 && (
+            <div className="flex items-center gap-2 text-xs text-neutral-400">
+              <span>Match:</span>
+              <div className="inline-flex rounded-lg border border-neutral-700 overflow-hidden">
+                <button
+                  onClick={() => setMatchMode("and")}
+                  className={`px-3 py-1 transition ${
+                    matchMode === "and"
+                      ? "bg-neutral-200 text-neutral-900"
+                      : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
+                  }`}
+                >
+                  All tags
+                </button>
+                <button
+                  onClick={() => setMatchMode("or")}
+                  className={`px-3 py-1 transition border-l border-neutral-700 ${
+                    matchMode === "or"
+                      ? "bg-neutral-200 text-neutral-900"
+                      : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
+                  }`}
+                >
+                  Any tag
+                </button>
+              </div>
+              <span className="text-neutral-600">
+                {matchMode === "and" ? "(match every tag)" : "(match any tag)"}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>
