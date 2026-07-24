@@ -182,11 +182,15 @@ export default function BlockEditor({
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          "x-filename": encodeURIComponent(file.name),
+          "Content-Type": file.type || "application/octet-stream",
+        },
+        body: file,
+      });
       if (res.ok) {
         const { url } = await res.json();
         const newBlock: Block = pendingInsertType === "video"
