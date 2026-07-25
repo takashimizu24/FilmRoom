@@ -17,5 +17,11 @@ ln -sfn "$DATA_DIR/uploads" /app/public/uploads
 echo "Initialising database at $DATABASE_FILE ..."
 sqlite3 "$DATABASE_FILE" < /app/prisma/schema.sql
 
+# Lightweight column migrations for existing databases (CREATE TABLE IF NOT EXISTS
+# above won't alter tables that already exist). SQLite has no "ADD COLUMN IF NOT
+# EXISTS", so ignore the "duplicate column" error when the column is already there.
+sqlite3 "$DATABASE_FILE" 'ALTER TABLE "Message" ADD COLUMN "parentId" TEXT;' 2>/dev/null || true
+sqlite3 "$DATABASE_FILE" 'ALTER TABLE "Message" ADD COLUMN "blockRef" INTEGER;' 2>/dev/null || true
+
 echo "Starting FilmRoom ..."
 exec node server.js

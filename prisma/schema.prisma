@@ -87,4 +87,9 @@ model Message {
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id])
+  // Top-level comment id this is a reply to (null = top-level). Threads are two
+  // levels deep like YouTube: replies to replies still point at the top comment.
+  parentId  String?
+  // Index of the post block this comment is about (null = the whole post).
+  blockRef  Int?
 }

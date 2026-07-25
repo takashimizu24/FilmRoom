@@ -45,10 +45,21 @@ export async function POST(
     return Response.json({ error: "Not a member of this team" }, { status: 403 });
   }
 
-  const { content } = await request.json();
+  const { content, parentId, blockRef } = await request.json();
 
   if (!content?.trim()) {
     return Response.json({ error: "Please enter a message" }, { status: 400 });
+  }
+
+  // A reply must point at a top-level comment on THIS post; keep threads two
+  // levels deep by re-parenting a reply-to-a-reply onto its top comment.
+  let resolvedParentId: string | null = null;
+  if (typeof parentId === "string" && parentId) {
+    const parent = await prisma.message.findFirst({
+      where: { id: parentId, postId: id },
+      select: { id: true, parentId: true },
+    });
+    if (parent) resolvedParentId = parent.parentId ?? parent.id;
   }
 
   const message = await prisma.message.create({
@@ -56,6 +67,8 @@ export async function POST(
       content: content.trim(),
       postId: id,
       userId: session.user.id,
+      parentId: resolvedParentId,
+      blockRef: typeof blockRef === "number" && Number.isInteger(blockRef) && blockRef >= 0 ? blockRef : null,
     },
     include: { user: { select: { name: true } } },
   });

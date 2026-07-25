@@ -164,7 +164,7 @@ export default function PostPage() {
 
       {session ? (
         <div className="print:hidden">
-          <Chat postId={post.id} />
+          <Chat postId={post.id} blocks={post.blocks} />
         </div>
       ) : (
         <div className="print:hidden bg-neutral-900 border border-neutral-800 rounded-xl p-6 text-center">

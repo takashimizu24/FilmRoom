@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Block } from "@/lib/types";
 import { YouTubePlayer, UploadedVideo } from "./VideoPlayer";
 import TagList from "./TagList";
+import { blockAnchorId } from "@/lib/blocks";
 
 function TextBlock({ content }: { content: string }) {
   const [translated, setTranslated] = useState<string | null>(null);
@@ -87,39 +88,45 @@ export default function BlockRenderer({
   return (
     <div className="space-y-4">
       {blocks.map((block, i) => {
+        let inner: React.ReactNode = null;
         switch (block.type) {
           case "text":
-            return <TextBlock key={i} content={block.content} />;
+            inner = <TextBlock content={block.content} />;
+            break;
           case "image":
-            return (
-              <div key={i}>
+            inner = (
+              <>
                 <div className="rounded-xl overflow-hidden">
                   <img src={block.url} alt="" className="w-full" />
                 </div>
                 <MediaTagList tags={block.tags} colors={tagColors} />
-              </div>
+              </>
             );
+            break;
           case "video":
-            return (
-              <div key={i}>
+            inner = (
+              <>
                 <UploadedVideo url={block.url} />
                 <MediaTagList tags={block.tags} colors={tagColors} />
-              </div>
+              </>
             );
+            break;
           case "youtube":
-            return (
-              <div key={i}>
-                <YouTubePlayer
-                  url={block.url}
-                  startTime={block.startTime}
-                  endTime={block.endTime}
-                />
+            inner = (
+              <>
+                <YouTubePlayer url={block.url} startTime={block.startTime} endTime={block.endTime} />
                 <MediaTagList tags={block.tags} colors={tagColors} />
-              </div>
+              </>
             );
+            break;
           default:
             return null;
         }
+        return (
+          <div key={i} id={blockAnchorId(i)} className="scroll-mt-20 target:ring-2 target:ring-neutral-500 rounded-xl">
+            {inner}
+          </div>
+        );
       })}
     </div>
   );
