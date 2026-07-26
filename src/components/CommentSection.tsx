@@ -1,94 +1,50 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useSession } from "next-auth/react";
-import type { Block } from "@/lib/types";
-import { blockLabel, blockAnchorId } from "@/lib/blocks";
+import { useState } from "react";
+import { useComments, type Message } from "./CommentsContext";
 
-interface Message {
-  id: string;
-  content: string;
-  createdAt: string;
-  user: { name: string };
-  userId: string;
-  parentId: string | null;
+// A threaded comment list + composer scoped to one target: a specific block
+// (`blockRef` = index) or the whole post (`blockRef` = null). Replies are kept
+// two levels deep, YouTube-style, with a View/Hide toggle.
+export default function CommentSection({
+  blockRef,
+  placeholder = "Write a comment...",
+  emptyText = "No comments yet.",
+  autoFocusComposer = false,
+}: {
   blockRef: number | null;
-}
+  placeholder?: string;
+  emptyText?: string;
+  autoFocusComposer?: boolean;
+}) {
+  const {
+    session,
+    postMessage,
+    refetch,
+    translations,
+    translating,
+    translateError,
+    handleTranslate,
+    topLevelFor,
+    repliesFor,
+  } = useComments();
 
-export default function Chat({ postId, blocks }: { postId: string; blocks: Block[] }) {
-  const { data: session } = useSession();
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [composerBlockRef, setComposerBlockRef] = useState<number | "">("");
   const [sending, setSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyInput, setReplyInput] = useState("");
   const [openThreads, setOpenThreads] = useState<Record<string, boolean>>({});
-  const [translations, setTranslations] = useState<Record<string, string>>({});
-  const [translating, setTranslating] = useState<string | null>(null);
-  const [translateError, setTranslateError] = useState<string | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>(null);
 
-  async function fetchMessages() {
-    const res = await fetch(`/api/posts/${postId}/messages`);
-    if (res.ok) setMessages(await res.json());
-  }
-
-  useEffect(() => {
-    fetchMessages();
-    intervalRef.current = setInterval(fetchMessages, 4000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [postId]);
-
-  async function handleTranslate(msg: Message) {
-    if (translations[msg.id]) {
-      setTranslations((prev) => {
-        const next = { ...prev };
-        delete next[msg.id];
-        return next;
-      });
-      return;
-    }
-    setTranslateError(null);
-    setTranslating(msg.id);
-    try {
-      const res = await fetch("/api/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: msg.content }),
-      });
-      if (res.ok) {
-        const { translated } = await res.json();
-        setTranslations((prev) => ({ ...prev, [msg.id]: translated }));
-      } else {
-        setTranslateError(msg.id);
-      }
-    } catch {
-      setTranslateError(msg.id);
-    }
-    setTranslating(null);
-  }
-
-  async function postMessage(content: string, opts: { parentId?: string; blockRef?: number | null }) {
-    const res = await fetch(`/api/posts/${postId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, parentId: opts.parentId, blockRef: opts.blockRef ?? null }),
-    });
-    return res.ok;
-  }
+  const topLevel = topLevelFor(blockRef);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim() || sending) return;
     setSending(true);
-    const ok = await postMessage(input, { blockRef: composerBlockRef === "" ? null : composerBlockRef });
+    const ok = await postMessage(input, { blockRef });
     if (ok) {
       setInput("");
-      setComposerBlockRef("");
-      await fetchMessages();
+      await refetch();
     }
     setSending(false);
   }
@@ -101,7 +57,7 @@ export default function Chat({ postId, blocks }: { postId: string; blocks: Block
       setReplyInput("");
       setReplyingTo(null);
       setOpenThreads((p) => ({ ...p, [threadId]: true }));
-      await fetchMessages();
+      await refetch();
     }
     setSending(false);
   }
@@ -111,22 +67,15 @@ export default function Chat({ postId, blocks }: { postId: string; blocks: Block
     setReplyInput(mentionName ? `@${mentionName} ` : "");
   }
 
-  function scrollToBlock(idx: number) {
-    document.getElementById(blockAnchorId(idx))?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-
-  const topLevel = messages.filter((m) => !m.parentId);
-  const repliesByParent = new Map<string, Message[]>();
-  for (const m of messages) {
-    if (m.parentId) {
-      const arr = repliesByParent.get(m.parentId) ?? [];
-      arr.push(m);
-      repliesByParent.set(m.parentId, arr);
-    }
-  }
-
-  function Comment({ msg, threadId, isReply }: { msg: Message; threadId: string; isReply?: boolean }) {
-    const targeted = msg.blockRef != null && blocks[msg.blockRef];
+  function Comment({
+    msg,
+    threadId,
+    isReply,
+  }: {
+    msg: Message;
+    threadId: string;
+    isReply?: boolean;
+  }) {
     return (
       <div className="flex gap-3">
         <div
@@ -141,17 +90,9 @@ export default function Chat({ postId, blocks }: { postId: string; blocks: Block
               {new Date(msg.createdAt).toLocaleString("en-US")}
             </span>
           </div>
-          {targeted && (
-            <button
-              type="button"
-              onClick={() => scrollToBlock(msg.blockRef!)}
-              className="mt-1 inline-block max-w-full truncate text-xs text-neutral-400 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded px-1.5 py-0.5 transition"
-              title="Jump to this part of the post"
-            >
-              ↳ {blockLabel(blocks[msg.blockRef!], msg.blockRef!)}
-            </button>
-          )}
-          <p className="text-neutral-300 text-sm mt-0.5 break-words whitespace-pre-line">{msg.content}</p>
+          <p className="text-neutral-300 text-sm mt-0.5 break-words whitespace-pre-line">
+            {msg.content}
+          </p>
           {translations[msg.id] && (
             <p className="text-neutral-500 text-sm mt-1 break-words italic whitespace-pre-line">
               {translations[msg.id]}
@@ -167,7 +108,11 @@ export default function Chat({ postId, blocks }: { postId: string; blocks: Block
               disabled={translating === msg.id}
               className="text-xs text-neutral-500 hover:text-neutral-300 transition disabled:opacity-50"
             >
-              {translating === msg.id ? "Translating..." : translations[msg.id] ? "Hide translation" : "Translate"}
+              {translating === msg.id
+                ? "Translating..."
+                : translations[msg.id]
+                  ? "Hide translation"
+                  : "Translate"}
             </button>
             {session && (
               <button
@@ -185,18 +130,12 @@ export default function Chat({ postId, blocks }: { postId: string; blocks: Block
   }
 
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-      <div className="bg-neutral-800 px-4 py-3 border-b border-neutral-700">
-        <h3 className="font-semibold text-neutral-300">Comments</h3>
-      </div>
-      <div className="max-h-[28rem] overflow-y-auto p-4 space-y-5">
-        {topLevel.length === 0 && (
-          <p className="text-center text-neutral-600 text-sm py-8">
-            No comments yet. Be the first to say something!
-          </p>
-        )}
-        {topLevel.map((top) => {
-          const replies = repliesByParent.get(top.id) ?? [];
+    <div className="space-y-5">
+      {topLevel.length === 0 ? (
+        <p className="text-center text-neutral-600 text-sm py-4">{emptyText}</p>
+      ) : (
+        topLevel.map((top) => {
+          const replies = repliesFor(top.id);
           const open = openThreads[top.id];
           return (
             <div key={top.id} className="space-y-3">
@@ -209,7 +148,8 @@ export default function Chat({ postId, blocks }: { postId: string; blocks: Block
                     onClick={() => setOpenThreads((p) => ({ ...p, [top.id]: !p[top.id] }))}
                     className="text-xs text-neutral-400 hover:text-neutral-200 transition mb-2"
                   >
-                    {open ? "Hide" : "View"} {replies.length} {replies.length === 1 ? "reply" : "replies"}
+                    {open ? "Hide" : "View"} {replies.length}{" "}
+                    {replies.length === 1 ? "reply" : "replies"}
                   </button>
                   {open && (
                     <div className="space-y-3">
@@ -259,31 +199,17 @@ export default function Chat({ postId, blocks }: { postId: string; blocks: Block
               )}
             </div>
           );
-        })}
-      </div>
+        })
+      )}
 
-      <form onSubmit={handleSend} className="border-t border-neutral-700 p-3 space-y-2">
-        {blocks.length > 0 && (
-          <select
-            value={composerBlockRef}
-            onChange={(e) => setComposerBlockRef(e.target.value === "" ? "" : Number(e.target.value))}
-            aria-label="What is this comment about?"
-            className="w-full px-3 py-2 border border-neutral-700 rounded-lg text-sm text-neutral-300 bg-neutral-800 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
-          >
-            <option value="">💬 About the whole post</option>
-            {blocks.map((b, i) => (
-              <option key={i} value={i}>
-                {blockLabel(b, i)}
-              </option>
-            ))}
-          </select>
-        )}
-        <div className="flex gap-2">
+      {session && (
+        <form onSubmit={handleSend} className="flex gap-2">
           <input
             type="text"
             value={input}
+            autoFocus={autoFocusComposer}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Write a comment..."
+            placeholder={placeholder}
             className="flex-1 min-w-0 px-3 py-2 border border-neutral-700 rounded-lg text-sm text-neutral-100 bg-neutral-800 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
           />
           <button
@@ -293,8 +219,8 @@ export default function Chat({ postId, blocks }: { postId: string; blocks: Block
           >
             Send
           </button>
-        </div>
-      </form>
+        </form>
+      )}
     </div>
   );
 }

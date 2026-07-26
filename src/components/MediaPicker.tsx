@@ -60,17 +60,31 @@ export default function MediaPicker({
                   key={`${item.type}|${item.url}`}
                   className="flex flex-col bg-neutral-800 border border-neutral-700 rounded-lg overflow-hidden"
                 >
-                  <div className="relative aspect-video bg-black flex items-center justify-center">
+                  <div className="relative aspect-video min-h-[150px] bg-black flex items-center justify-center">
                     {item.type === "image" && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={item.url} alt="" className="w-full h-full object-contain" />
                     )}
                     {item.type === "video" && (
                       <video
-                        src={item.url}
+                        // "#t=0.1" hints mobile Safari to show the frame at 0.1s as a
+                        // poster; the onLoadedMetadata seek forces that frame to
+                        // actually paint on other browsers too, so clips aren't just
+                        // black boxes you can't tell apart.
+                        src={`${item.url}#t=0.1`}
                         controls
                         playsInline
                         preload="metadata"
+                        onLoadedMetadata={(e) => {
+                          const v = e.currentTarget;
+                          if (v.currentTime === 0) {
+                            try {
+                              v.currentTime = 0.1;
+                            } catch {
+                              /* ignore seek errors */
+                            }
+                          }
+                        }}
                         className="w-full h-full object-contain"
                       />
                     )}
@@ -91,7 +105,10 @@ export default function MediaPicker({
                     </span>
                   </div>
                   <div className="flex items-center gap-2 p-2">
-                    <span className="flex-1 min-w-0 text-xs text-neutral-300 truncate" title={label}>
+                    <span
+                      className="flex-1 min-w-0 text-xs text-neutral-300 line-clamp-2 leading-snug"
+                      title={label}
+                    >
                       {label || <span className="text-neutral-600">No caption</span>}
                     </span>
                     <button

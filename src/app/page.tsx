@@ -314,9 +314,9 @@ export default function HomePage() {
                 href={`/posts/${post.id}`}
                 className="block bg-neutral-900 rounded-xl border border-neutral-800 p-4 hover:border-neutral-600 transition"
               >
-                <div className="flex items-start gap-2 mb-1.5">
+                <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-1.5">
                   {post.group && <span className="mt-0.5 shrink-0"><GroupBadge group={post.group} /></span>}
-                  <h2 className="text-base font-semibold text-neutral-100 truncate">
+                  <h2 className="text-base font-semibold text-neutral-100 break-words min-w-0">
                     {post.title}
                   </h2>
                 </div>

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import BlockRenderer from "@/components/BlockRenderer";
-import Chat from "@/components/Chat";
+import { CommentsProvider } from "@/components/CommentsContext";
+import CommentSection from "@/components/CommentSection";
 import GroupBadge from "@/components/GroupBadge";
 import TagList from "@/components/TagList";
 import Link from "next/link";
@@ -135,48 +136,58 @@ export default function PostPage() {
         </div>
       </div>
 
-      <article id="article-content" className="mb-8">
-        {post.group && (
-          <div className="mb-2">
-            <GroupBadge group={post.group} className="px-2.5 py-1" />
+      <CommentsProvider postId={post.id}>
+        <article id="article-content" className="mb-8">
+          {post.group && (
+            <div className="mb-2">
+              <GroupBadge group={post.group} className="px-2.5 py-1" />
+            </div>
+          )}
+          <h1 className="text-3xl font-bold text-neutral-100 mb-3">{post.title}</h1>
+          <div className="flex items-center gap-3 text-sm text-neutral-500 mb-3">
+            <span>{post.author.name}</span>
+            <span>·</span>
+            <time>{new Date(post.createdAt).toLocaleDateString("en-US")}</time>
+          </div>
+          {post.tags.length > 0 && (
+            <div className="mb-6">
+              <TagList
+                tags={post.tags.map((t) => ({
+                  name: t.name,
+                  color: t.color ?? tagColors.get(t.name) ?? null,
+                }))}
+                max={4}
+              />
+            </div>
+          )}
+
+          <BlockRenderer blocks={post.blocks} tagColors={tagColors} withComments={!!session} />
+        </article>
+
+        {session ? (
+          <div className="print:hidden bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+            <div className="bg-neutral-800 px-4 py-3 border-b border-neutral-700">
+              <h3 className="font-semibold text-neutral-300">Comments on the whole post</h3>
+            </div>
+            <div className="p-4">
+              <CommentSection
+                blockRef={null}
+                emptyText="No comments yet. Be the first to say something!"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="print:hidden bg-neutral-900 border border-neutral-800 rounded-xl p-6 text-center">
+            <p className="text-neutral-500 text-sm mb-2">Log in to join the discussion</p>
+            <Link
+              href="/login"
+              className="text-neutral-400 text-sm hover:text-neutral-200 transition"
+            >
+              Log In / Sign Up
+            </Link>
           </div>
         )}
-        <h1 className="text-3xl font-bold text-neutral-100 mb-3">{post.title}</h1>
-        <div className="flex items-center gap-3 text-sm text-neutral-500 mb-3">
-          <span>{post.author.name}</span>
-          <span>·</span>
-          <time>{new Date(post.createdAt).toLocaleDateString("en-US")}</time>
-        </div>
-        {post.tags.length > 0 && (
-          <div className="mb-6">
-            <TagList
-              tags={post.tags.map((t) => ({
-                name: t.name,
-                color: t.color ?? tagColors.get(t.name) ?? null,
-              }))}
-              max={4}
-            />
-          </div>
-        )}
-
-        <BlockRenderer blocks={post.blocks} tagColors={tagColors} />
-      </article>
-
-      {session ? (
-        <div className="print:hidden">
-          <Chat postId={post.id} blocks={post.blocks} />
-        </div>
-      ) : (
-        <div className="print:hidden bg-neutral-900 border border-neutral-800 rounded-xl p-6 text-center">
-          <p className="text-neutral-500 text-sm mb-2">Log in to join the discussion</p>
-          <Link
-            href="/login"
-            className="text-neutral-400 text-sm hover:text-neutral-200 transition"
-          >
-            Log In / Sign Up
-          </Link>
-        </div>
-      )}
+      </CommentsProvider>
     </div>
   );
 }

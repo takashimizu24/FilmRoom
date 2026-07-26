@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Block } from "@/lib/types";
 import { YouTubePlayer, UploadedVideo } from "./VideoPlayer";
 import TagList from "./TagList";
+import BlockComments from "./BlockComments";
 import { blockAnchorId } from "@/lib/blocks";
 
 function TextBlock({ content }: { content: string }) {
@@ -81,9 +82,13 @@ function MediaTagList({
 export default function BlockRenderer({
   blocks,
   tagColors,
+  withComments = false,
 }: {
   blocks: Block[];
   tagColors?: Map<string, string | null>;
+  // When true, each block gets its own collapsible inline comment thread.
+  // Requires the tree to be wrapped in <CommentsProvider>.
+  withComments?: boolean;
 }) {
   return (
     <div className="space-y-4">
@@ -125,6 +130,7 @@ export default function BlockRenderer({
         return (
           <div key={i} id={blockAnchorId(i)} className="scroll-mt-20 target:ring-2 target:ring-neutral-500 rounded-xl">
             {inner}
+            {withComments && <BlockComments blockRef={i} />}
           </div>
         );
       })}
