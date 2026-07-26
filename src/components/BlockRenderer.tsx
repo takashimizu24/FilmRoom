@@ -93,44 +93,47 @@ export default function BlockRenderer({
   return (
     <div className="space-y-4">
       {blocks.map((block, i) => {
-        let inner: React.ReactNode = null;
+        let media: React.ReactNode = null;
         switch (block.type) {
           case "text":
-            inner = <TextBlock content={block.content} />;
+            media = <TextBlock content={block.content} />;
             break;
           case "image":
-            inner = (
-              <>
-                <div className="rounded-xl overflow-hidden">
-                  <img src={block.url} alt="" className="w-full" />
-                </div>
-                <MediaTagList tags={block.tags} colors={tagColors} />
-              </>
+            media = (
+              <div className="rounded-xl overflow-hidden">
+                <img src={block.url} alt="" className="w-full" />
+              </div>
             );
             break;
           case "video":
-            inner = (
-              <>
-                <UploadedVideo url={block.url} />
-                <MediaTagList tags={block.tags} colors={tagColors} />
-              </>
-            );
+            media = <UploadedVideo url={block.url} />;
             break;
           case "youtube":
-            inner = (
-              <>
-                <YouTubePlayer url={block.url} startTime={block.startTime} endTime={block.endTime} />
-                <MediaTagList tags={block.tags} colors={tagColors} />
-              </>
+            media = (
+              <YouTubePlayer url={block.url} startTime={block.startTime} endTime={block.endTime} />
             );
             break;
           default:
             return null;
         }
+        // Tags live only on media blocks. The footer keeps the tags and the
+        // comment toggle on one row; text blocks (used as captions) get no
+        // comment toggle by default so they sit tight under their media.
+        const tags = "tags" in block ? block.tags : undefined;
+        const isText = block.type === "text";
         return (
           <div key={i} id={blockAnchorId(i)} className="scroll-mt-20 target:ring-2 target:ring-neutral-500 rounded-xl">
-            {inner}
-            {withComments && <BlockComments blockRef={i} />}
+            {media}
+            {withComments ? (
+              <BlockComments
+                blockRef={i}
+                tags={tags}
+                tagColors={tagColors}
+                enabledByDefault={!isText}
+              />
+            ) : (
+              tags && tags.length > 0 ? <MediaTagList tags={tags} colors={tagColors} /> : null
+            )}
           </div>
         );
       })}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useComments } from "./CommentsContext";
 import CommentSection from "./CommentSection";
+import TagList from "./TagList";
 
 function CommentIcon() {
   return (
@@ -22,34 +23,63 @@ function CommentIcon() {
   );
 }
 
-// Inline, collapsed-by-default comment thread for a single block. Kept hidden so
-// the post's timeline of items doesn't grow too tall; the toggle shows the count.
-export default function BlockComments({ blockRef }: { blockRef: number }) {
+// A block's footer: its hashtags on the left and a small comment toggle at the
+// right edge, on ONE row, so the comment affordance doesn't add a separate line
+// that pushes a following "caption" text block away from its media. The thread
+// itself is collapsed by default and expands below the row.
+//
+// `enabledByDefault` decides whether the comment toggle shows for logged-in users
+// with no comments yet: true for media (you comment on the clip), false for text
+// blocks (they're usually captions and don't need their own thread) — but an
+// existing comment always keeps the toggle so nothing gets orphaned.
+export default function BlockComments({
+  blockRef,
+  tags,
+  tagColors,
+  enabledByDefault = true,
+}: {
+  blockRef: number;
+  tags?: string[];
+  tagColors?: Map<string, string | null>;
+  enabledByDefault?: boolean;
+}) {
   const { countFor, session } = useComments();
   const [open, setOpen] = useState(false);
   const count = countFor(blockRef);
 
-  // Logged-out viewers can't post; hide the affordance entirely when empty.
-  if (!session && count === 0) return null;
+  const hasTags = !!tags && tags.length > 0;
+  const showToggle = count > 0 || (enabledByDefault && !!session);
+
+  if (!hasTags && !showToggle) return null;
 
   return (
-    <div className="mt-1.5">
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          aria-label={count > 0 ? `${count} comments` : "Add a comment"}
-          title={count > 0 ? `${count} comment${count === 1 ? "" : "s"}` : "Add a comment"}
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs transition ${
-            open || count > 0
-              ? "text-neutral-300 hover:text-neutral-100"
-              : "text-neutral-600 hover:text-neutral-300"
-          }`}
-        >
-          <CommentIcon />
-          {count > 0 && <span className="tabular-nums">{count}</span>}
-        </button>
+    <div className="mt-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          {hasTags && (
+            <TagList
+              tags={tags!.map((t) => ({ name: t, color: tagColors?.get(t) ?? null }))}
+              max={3}
+            />
+          )}
+        </div>
+        {showToggle && (
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-label={count > 0 ? `${count} comments` : "Add a comment"}
+            title={count > 0 ? `${count} comment${count === 1 ? "" : "s"}` : "Add a comment"}
+            className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs transition ${
+              open || count > 0
+                ? "text-neutral-300 hover:text-neutral-100"
+                : "text-neutral-600 hover:text-neutral-300"
+            }`}
+          >
+            <CommentIcon />
+            {count > 0 && <span className="tabular-nums">{count}</span>}
+          </button>
+        )}
       </div>
 
       {open && (
