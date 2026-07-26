@@ -171,6 +171,15 @@ export default function BlockEditor({
     onChange(next);
   }
 
+  // Jump a block straight to the top, keeping the order of the rest.
+  function moveBlockToTop(index: number) {
+    if (index <= 0) return;
+    const next = [...blocks];
+    const [moved] = next.splice(index, 1);
+    next.unshift(moved);
+    onChange(next);
+  }
+
   function addBlock(type: Block["type"], atIndex?: number) {
     const insertAt = atIndex ?? blocks.length;
     let newBlock: Block;
@@ -335,8 +344,23 @@ export default function BlockEditor({
           <div className="absolute -left-10 top-1/2 -translate-y-1/2 flex flex-col gap-1">
             <button
               type="button"
+              onClick={() => moveBlockToTop(i)}
+              disabled={i === 0}
+              className="w-7 h-7 bg-neutral-800 hover:bg-neutral-700 rounded flex items-center justify-center text-neutral-400 hover:text-neutral-200 transition disabled:opacity-30 disabled:hover:bg-neutral-800"
+              title="Move to top"
+              aria-label="Move to top"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 4h14" />
+                <path d="m7 13 5-5 5 5" />
+                <path d="m7 19 5-5 5 5" />
+              </svg>
+            </button>
+            <button
+              type="button"
               onClick={() => moveBlock(i, -1)}
-              className="w-7 h-7 bg-neutral-800 hover:bg-neutral-700 rounded flex items-center justify-center text-neutral-400 hover:text-neutral-200 transition"
+              disabled={i === 0}
+              className="w-7 h-7 bg-neutral-800 hover:bg-neutral-700 rounded flex items-center justify-center text-neutral-400 hover:text-neutral-200 transition disabled:opacity-30 disabled:hover:bg-neutral-800"
               title="Move up"
               aria-label="Move up"
             >
@@ -347,7 +371,8 @@ export default function BlockEditor({
             <button
               type="button"
               onClick={() => moveBlock(i, 1)}
-              className="w-7 h-7 bg-neutral-800 hover:bg-neutral-700 rounded flex items-center justify-center text-neutral-400 hover:text-neutral-200 transition"
+              disabled={i === blocks.length - 1}
+              className="w-7 h-7 bg-neutral-800 hover:bg-neutral-700 rounded flex items-center justify-center text-neutral-400 hover:text-neutral-200 transition disabled:opacity-30 disabled:hover:bg-neutral-800"
               title="Move down"
               aria-label="Move down"
             >

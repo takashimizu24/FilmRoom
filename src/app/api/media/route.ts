@@ -23,9 +23,18 @@ export async function GET(request: NextRequest) {
 
   const posts = await prisma.post.findMany({
     where: { teamId },
-    select: { title: true, blocks: true },
+    select: { title: true, blocks: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
+
+  // Uploaded files are named `${Date.now()}-${rand}.ext`, so the leading number
+  // is the upload time. For YouTube links (and any legacy names) fall back to the
+  // post's creation time.
+  function uploadTime(url: string, fallback: number): number {
+    const base = url.split("/").pop() ?? "";
+    const m = base.match(/^(\d{13})-/);
+    return m ? Number(m[1]) : fallback;
+  }
 
   const seen = new Set<string>();
   const items: {
@@ -33,9 +42,10 @@ export async function GET(request: NextRequest) {
     url: string;
     postTitle: string;
     caption: string;
+    sortTs: number;
   }[] = [];
-  // Newest-first: the first occurrence of each url wins, so its caption is the
-  // most recently set one.
+  // Deduplicate by type + url; scanning posts newest-first means the first
+  // occurrence of each url wins, so its caption is the most recently set one.
   for (const post of posts) {
     for (const b of parseBlocks(post.blocks)) {
       if (b.type !== "video" && b.type !== "image" && b.type !== "youtube") continue;
@@ -43,9 +53,20 @@ export async function GET(request: NextRequest) {
       const key = `${b.type}|${b.url}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      items.push({ type: b.type, url: b.url, postTitle: post.title, caption: b.caption ?? "" });
+      items.push({
+        type: b.type,
+        url: b.url,
+        postTitle: post.title,
+        caption: b.caption ?? "",
+        sortTs: uploadTime(b.url, post.createdAt.getTime()),
+      });
     }
   }
 
-  return Response.json(items);
+  // Newest upload first.
+  items.sort((a, b) => b.sortTs - a.sortTs);
+
+  return Response.json(
+    items.map((it) => ({ type: it.type, url: it.url, postTitle: it.postTitle, caption: it.caption }))
+  );
 }
