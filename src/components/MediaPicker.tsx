@@ -10,10 +10,11 @@ export type MediaItem = {
 };
 
 // A modal that lists media already used on the team so it can be reused in the
-// current post. Uploaded videos are playable here so similar clips can be told
-// apart; the media's caption (hidden in the post) is shown as its label.
-// Picking an item inserts a block that points at the SAME url, so uploaded files
-// aren't duplicated in storage and YouTube links aren't retyped.
+// current post. Uploaded videos are playable here (preview) so similar clips can
+// be told apart; the media's caption (hidden in the post) and its source post
+// title are shown prominently as the label. Picking an item inserts a block that
+// points at the SAME url, so uploaded files aren't duplicated in storage and
+// YouTube links aren't retyped.
 export default function MediaPicker({
   items,
   onPick,
@@ -38,7 +39,7 @@ export default function MediaPicker({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 transition"
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 transition text-xl"
           >
             ×
           </button>
@@ -49,10 +50,10 @@ export default function MediaPicker({
             No media has been added to this team yet.
           </div>
         ) : (
-          <div className="overflow-y-auto p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="overflow-y-auto p-3 grid grid-cols-1 sm:grid-cols-2 gap-4 content-start auto-rows-max">
             {items.map((item) => {
               const ytId = item.type === "youtube" ? extractYoutubeId(item.url) : null;
-              const label = item.caption?.trim() || item.postTitle;
+              const caption = item.caption?.trim();
               const typeLabel =
                 item.type === "youtube" ? "YouTube" : item.type === "video" ? "Video" : "Image";
               return (
@@ -60,7 +61,7 @@ export default function MediaPicker({
                   key={`${item.type}|${item.url}`}
                   className="flex flex-col bg-neutral-800 border border-neutral-700 rounded-lg overflow-hidden"
                 >
-                  <div className="relative aspect-video min-h-[150px] bg-black flex items-center justify-center">
+                  <div className="relative aspect-video min-h-[160px] bg-black flex items-center justify-center">
                     {item.type === "image" && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={item.url} alt="" className="w-full h-full object-contain" />
@@ -70,7 +71,7 @@ export default function MediaPicker({
                         // "#t=0.1" hints mobile Safari to show the frame at 0.1s as a
                         // poster; the onLoadedMetadata seek forces that frame to
                         // actually paint on other browsers too, so clips aren't just
-                        // black boxes you can't tell apart.
+                        // black boxes you can't tell apart. `controls` = preview.
                         src={`${item.url}#t=0.1`}
                         controls
                         playsInline
@@ -92,7 +93,7 @@ export default function MediaPicker({
                       (ytId ? (
                         <iframe
                           src={`https://www.youtube.com/embed/${ytId}`}
-                          title={label}
+                          title={caption || item.postTitle}
                           className="w-full h-full"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
@@ -104,19 +105,32 @@ export default function MediaPicker({
                       {typeLabel}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 p-2">
-                    <span
-                      className="flex-1 min-w-0 text-xs text-neutral-300 line-clamp-2 leading-snug"
-                      title={label}
-                    >
-                      {label || <span className="text-neutral-600">No caption</span>}
-                    </span>
+
+                  <div className="flex flex-col gap-2 p-3">
+                    <div className="min-w-0">
+                      {caption ? (
+                        <>
+                          <p className="text-sm font-semibold text-neutral-100 line-clamp-2 leading-snug">
+                            {caption}
+                          </p>
+                          <p className="text-xs text-neutral-500 line-clamp-1 mt-0.5">
+                            From: {item.postTitle}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-sm font-medium text-neutral-200 line-clamp-2 leading-snug">
+                          {item.postTitle || (
+                            <span className="text-neutral-500 font-normal">Untitled</span>
+                          )}
+                        </p>
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={() => onPick(item)}
-                      className="shrink-0 px-3 py-1.5 bg-neutral-700 hover:bg-neutral-600 rounded-lg text-xs text-neutral-100 transition"
+                      className="w-full py-2.5 bg-neutral-100 hover:bg-white active:bg-neutral-300 rounded-lg text-sm font-semibold text-neutral-900 transition"
                     >
-                      Use
+                      Use this
                     </button>
                   </div>
                 </div>
