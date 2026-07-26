@@ -136,7 +136,7 @@ export default function PostPage() {
         </div>
       </div>
 
-      <CommentsProvider postId={post.id}>
+      <CommentsProvider postId={post.id} postAuthorId={post.authorId}>
         <article id="article-content" className="mb-8">
           {post.group && (
             <div className="mb-2">

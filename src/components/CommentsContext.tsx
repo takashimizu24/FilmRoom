@@ -22,12 +22,15 @@ export interface Message {
 
 interface CommentsContextValue {
   session: ReturnType<typeof useSession>["data"];
+  // Author of the post, so the coach can moderate (delete) any comment on it.
+  postAuthorId: string | null;
   messages: Message[];
   refetch: () => Promise<void>;
   postMessage: (
     content: string,
     opts: { parentId?: string; blockRef?: number | null }
   ) => Promise<boolean>;
+  deleteMessage: (messageId: string) => Promise<boolean>;
   translations: Record<string, string>;
   translating: string | null;
   translateError: string | null;
@@ -49,9 +52,11 @@ export function useComments() {
 
 export function CommentsProvider({
   postId,
+  postAuthorId = null,
   children,
 }: {
   postId: string;
+  postAuthorId?: string | null;
   children: ReactNode;
 }) {
   const { data: session } = useSession();
@@ -88,6 +93,20 @@ export function CommentsProvider({
         blockRef: opts.blockRef ?? null,
       }),
     });
+    return res.ok;
+  }
+
+  async function deleteMessage(messageId: string) {
+    const res = await fetch(`/api/posts/${postId}/messages/${messageId}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      // Drop it (and its replies) locally right away, then reconcile.
+      setMessages((prev) =>
+        prev.filter((m) => m.id !== messageId && m.parentId !== messageId)
+      );
+      await refetch();
+    }
     return res.ok;
   }
 
@@ -137,9 +156,11 @@ export function CommentsProvider({
     <Ctx.Provider
       value={{
         session,
+        postAuthorId,
         messages,
         refetch,
         postMessage,
+        deleteMessage,
         translations,
         translating,
         translateError,

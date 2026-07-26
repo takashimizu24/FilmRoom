@@ -19,7 +19,9 @@ export default function CommentSection({
 }) {
   const {
     session,
+    postAuthorId,
     postMessage,
+    deleteMessage,
     refetch,
     translations,
     translating,
@@ -65,6 +67,16 @@ export default function CommentSection({
   function startReply(threadId: string, mentionName?: string) {
     setReplyingTo(threadId);
     setReplyInput(mentionName ? `@${mentionName} ` : "");
+  }
+
+  async function handleDelete(msg: Message) {
+    const replyCount = msg.parentId ? 0 : repliesFor(msg.id).length;
+    const message =
+      replyCount > 0
+        ? `Delete this comment and its ${replyCount} ${replyCount === 1 ? "reply" : "replies"}?`
+        : "Delete this comment?";
+    if (!window.confirm(message)) return;
+    await deleteMessage(msg.id);
   }
 
   function Comment({
@@ -123,6 +135,16 @@ export default function CommentSection({
                 Reply
               </button>
             )}
+            {session?.user?.id &&
+              (session.user.id === msg.userId || session.user.id === postAuthorId) && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(msg)}
+                  className="text-xs text-neutral-600 hover:text-red-400 transition"
+                >
+                  Delete
+                </button>
+              )}
           </div>
         </div>
       </div>
