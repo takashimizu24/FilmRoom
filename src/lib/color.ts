@@ -7,6 +7,18 @@ export function normalizeHexColor(input: unknown): string | null {
   return null;
 }
 
+/** Turns a hex colour into an `rgba(...)` string at the given alpha, or null. */
+export function hexAlpha(hex: unknown, alpha: number): string | null {
+  const norm = normalizeHexColor(hex);
+  if (!norm) return null;
+  let h = norm.replace("#", "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 /** Returns "#000" or "#fff" for best contrast text on the given hex background. */
 export function contrastText(hex?: string | null): string {
   if (!hex) return "#e5e5e5";

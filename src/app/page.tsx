@@ -7,7 +7,7 @@ import type { Block } from "@/lib/types";
 import { YouTubePlayer, UploadedVideo } from "@/components/VideoPlayer";
 import GroupBadge, { FolderIcon } from "@/components/GroupBadge";
 import TagList from "@/components/TagList";
-import { contrastText } from "@/lib/color";
+import { contrastText, hexAlpha } from "@/lib/color";
 
 interface Tag {
   name: string;
@@ -312,6 +312,11 @@ export default function HomePage() {
               <Link
                 key={post.id}
                 href={`/posts/${post.id}`}
+                style={
+                  post.group?.color
+                    ? { borderColor: hexAlpha(post.group.color, 0.55) ?? undefined }
+                    : undefined
+                }
                 className="glass block rounded-xl p-4 hover:border-white/20 transition"
               >
                 <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-1.5">

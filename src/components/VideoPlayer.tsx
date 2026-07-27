@@ -143,6 +143,21 @@ export function UploadedVideo({ url }: { url: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
   const [pipSupported, setPipSupported] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [holdPaused, setHoldPaused] = useState(false);
+
+  // Gesture bookkeeping for tap-to-toggle-controls and press-and-hold-to-pause.
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdingRef = useRef(false);
+  const movedRef = useRef(false);
+  const activeRef = useRef(false);
+  const downPos = useRef({ x: 0, y: 0 });
+  const keepVisible = useRef(false); // settings menu open => never auto-hide
+
+  useEffect(() => {
+    keepVisible.current = menuOpen || speedOpen;
+  }, [menuOpen, speedOpen]);
 
   useEffect(() => {
     setPipSupported(
@@ -150,6 +165,10 @@ export function UploadedVideo({ url }: { url: string }) {
         "pictureInPictureEnabled" in document &&
         document.pictureInPictureEnabled
     );
+    return () => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+    };
   }, []);
 
   // Close the settings menu when clicking outside the player.
@@ -165,6 +184,20 @@ export function UploadedVideo({ url }: { url: string }) {
     return () => document.removeEventListener("mousedown", onDocMouseDown);
   }, [menuOpen]);
 
+  function scheduleHide() {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => {
+      const v = videoRef.current;
+      if (v && !v.paused && !keepVisible.current) setControlsVisible(false);
+    }, 1600);
+  }
+
+  // Reveal the controls; while playing, arm the auto-hide so they fade again.
+  function bumpControls() {
+    setControlsVisible(true);
+    if (videoRef.current && !videoRef.current.paused) scheduleHide();
+  }
+
   function togglePlay() {
     const v = videoRef.current;
     if (!v) return;
@@ -172,9 +205,65 @@ export function UploadedVideo({ url }: { url: string }) {
     else v.pause();
   }
 
+  // ----- pointer gestures on the video surface (SNS short-video feel) -----
+  function onPointerDown(e: React.PointerEvent) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    activeRef.current = true;
+    movedRef.current = false;
+    holdingRef.current = false;
+    downPos.current = { x: e.clientX, y: e.clientY };
+    // Press-and-hold pauses (touch only, and only while actually playing).
+    if (e.pointerType !== "mouse" && videoRef.current && !videoRef.current.paused) {
+      holdTimer.current = setTimeout(() => {
+        const v = videoRef.current;
+        if (v && !v.paused) {
+          v.pause();
+          holdingRef.current = true;
+          setHoldPaused(true);
+        }
+      }, 220);
+    }
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    if (
+      Math.abs(e.clientX - downPos.current.x) > 12 ||
+      Math.abs(e.clientY - downPos.current.y) > 12
+    ) {
+      movedRef.current = true;
+      if (holdTimer.current) {
+        clearTimeout(holdTimer.current);
+        holdTimer.current = null;
+      }
+    }
+  }
+
+  function onPointerEnd() {
+    if (!activeRef.current) return; // guard against pointerup + pointerleave both firing
+    activeRef.current = false;
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
+    if (holdingRef.current) {
+      // Was a press-and-hold: resume playback on release.
+      holdingRef.current = false;
+      setHoldPaused(false);
+      videoRef.current?.play();
+      return;
+    }
+    if (movedRef.current) return; // a scroll/drag, not a tap
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) v.play(); // tapping a paused video starts it
+    else if (controlsVisible) setControlsVisible(false); // tap hides shown controls
+    else bumpControls(); // tap reveals controls (they auto-hide again)
+  }
+
   function onSeek(e: React.ChangeEvent<HTMLInputElement>) {
     const v = videoRef.current;
     if (v) v.currentTime = Number(e.target.value);
+    bumpControls();
   }
 
   function toggleMute() {
@@ -227,23 +316,55 @@ export function UploadedVideo({ url }: { url: string }) {
       {/* Browser view: custom controls */}
       <div
         ref={containerRef}
-        className="relative w-full bg-black rounded-xl overflow-hidden print:hidden group"
+        className="relative w-full bg-black rounded-xl overflow-hidden print:hidden select-none [-webkit-touch-callout:none]"
       >
         <video
           ref={videoRef}
           src={url}
           playsInline
-          onClick={togglePlay}
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
+          onPlay={() => {
+            setPlaying(true);
+            scheduleHide();
+          }}
+          onPause={() => {
+            setPlaying(false);
+            setControlsVisible(true);
+            if (hideTimer.current) clearTimeout(hideTimer.current);
+          }}
+          onEnded={() => setControlsVisible(true)}
           onTimeUpdate={() => setCurrent(videoRef.current?.currentTime ?? 0)}
           onLoadedMetadata={() => setDuration(videoRef.current?.duration ?? 0)}
           onVolumeChange={() => setMuted(videoRef.current?.muted ?? false)}
           className="w-full max-h-[500px] block"
         />
 
+        {/* Gesture surface: tap toggles controls, press-and-hold pauses. */}
+        <div
+          className="absolute inset-0 z-10"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerEnd}
+          onPointerCancel={onPointerEnd}
+          onPointerLeave={onPointerEnd}
+          onContextMenu={(e) => e.preventDefault()}
+        />
+
+        {/* Centre indicator when paused (or held-paused). */}
+        {!playing && (
+          <div className="absolute inset-0 z-[15] flex items-center justify-center pointer-events-none">
+            <div className="h-16 w-16 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center text-white [&_svg]:h-8 [&_svg]:w-8">
+              {holdPaused ? <PauseIcon /> : <PlayIcon />}
+            </div>
+          </div>
+        )}
+
         {/* Control bar */}
-        <div className="absolute inset-x-0 bottom-0 px-3 pt-10 pb-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+        <div
+          onPointerDown={() => bumpControls()}
+          className={`absolute inset-x-0 bottom-0 z-20 px-3 pt-10 pb-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-200 ${
+            controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        >
           <input
             type="range"
             min={0}
