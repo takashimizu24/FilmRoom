@@ -7,6 +7,7 @@ import type { Block } from "@/lib/types";
 import { YouTubePlayer, UploadedVideo } from "@/components/VideoPlayer";
 import GroupBadge, { FolderIcon } from "@/components/GroupBadge";
 import TagList from "@/components/TagList";
+import { useSearch } from "@/components/SearchContext";
 import { contrastText, hexAlpha } from "@/lib/color";
 
 interface Tag {
@@ -82,7 +83,9 @@ export default function HomePage() {
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [matchMode, setMatchMode] = useState<"and" | "or">("and");
-  const [search, setSearch] = useState("");
+  const { titleQuery } = useSearch();
+  const [activeTeamName, setActiveTeamName] = useState<string | null>(null);
+  const [teamCount, setTeamCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [noTeam, setNoTeam] = useState(false);
 
@@ -105,6 +108,9 @@ export default function HomePage() {
       }
       const activeId = document.cookie.match(/activeTeamId=([^;]+)/)?.[1];
       const teamId = teamsData.some((t: { id: string }) => t.id === activeId) ? activeId : teamsData[0].id;
+      const activeTeam = teamsData.find((t: { id: string }) => t.id === teamId) ?? teamsData[0];
+      setActiveTeamName(activeTeam?.name ?? null);
+      setTeamCount(teamsData.length);
 
       const [postsRes, tagsRes, groupsRes] = await Promise.all([
         fetch(`/api/posts?teamId=${teamId}`),
@@ -168,7 +174,7 @@ export default function HomePage() {
     );
   }
 
-  const searchTerm = search.trim().toLowerCase();
+  const searchTerm = titleQuery.trim().toLowerCase();
   const colorMap = new Map<string, string | null>(tags.map((t) => [t.name, t.color]));
 
   // Group filter applies first, forming the base set for both views.
@@ -206,9 +212,16 @@ export default function HomePage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-neutral-100 mb-6">
-        {activeTags.length > 0 ? `Clips tagged ${tagLabel}` : "Posts"}
-      </h1>
+      <div className="flex items-baseline gap-2 mb-6 min-w-0">
+        <h1 className="text-2xl font-bold text-neutral-100 shrink-0">
+          {activeTags.length > 0 ? `Clips tagged ${tagLabel}` : "Posts"}
+        </h1>
+        {activeTags.length === 0 && teamCount > 1 && activeTeamName && (
+          <span className="text-sm text-neutral-500 truncate min-w-0" title={activeTeamName}>
+            {activeTeamName}
+          </span>
+        )}
+      </div>
 
       <div className="mb-6 space-y-3">
         {/* Group tabs — squared, folder-icon style so they read as categories (vs #tag pills) */}
@@ -246,13 +259,6 @@ export default function HomePage() {
           </div>
         )}
 
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by title..."
-          className="w-full px-4 py-2 border border-neutral-700 rounded-lg text-sm text-neutral-100 bg-neutral-800 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
-        />
       </div>
 
       {activeTags.length > 0 ? (

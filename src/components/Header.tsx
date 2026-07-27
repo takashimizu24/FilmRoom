@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { useSearch } from "./SearchContext";
 
 interface Team {
   id: string;
@@ -21,6 +22,13 @@ const PlusIcon = () => (
   </svg>
 );
 
+const SearchIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="block">
+    <circle cx="11" cy="11" r="7" />
+    <path d="m21 21-4.3-4.3" />
+  </svg>
+);
+
 const GearIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="block">
     <circle cx="12" cy="12" r="3" />
@@ -31,6 +39,7 @@ const GearIcon = () => (
 export default function Header() {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const { titleQuery, setTitleQuery } = useSearch();
   const [activeTagParam, setActiveTagParam] = useState("");
 
   useEffect(() => {
@@ -95,18 +104,36 @@ export default function Header() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.svg" alt="FilmRoom" className="h-7 sm:h-8 w-auto" />
         </Link>
-        <nav className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <nav className="flex items-center gap-2 min-w-0 flex-1 justify-end">
           {session ? (
             <>
+              {/* Title search — lives here but filters the home list via context */}
+              {pathname === "/" && (
+                <div className="relative flex-1 min-w-0 max-w-xs">
+                  <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500">
+                    <SearchIcon />
+                  </span>
+                  <input
+                    type="text"
+                    value={titleQuery}
+                    onChange={(e) => setTitleQuery(e.target.value)}
+                    placeholder="Search titles"
+                    aria-label="Search by title"
+                    className="w-full h-9 pl-8 pr-2 bg-neutral-800/70 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                  />
+                </div>
+              )}
+
+              {/* Tag search */}
               {tags.length > 0 && (
                 <select
                   value=""
                   onChange={(e) => handleTagSearch(e.target.value)}
                   aria-label="Search by tag"
-                  className="h-9 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-300 px-2 focus:ring-2 focus:ring-neutral-500 focus:border-transparent shrink-0 max-w-[7.5rem]"
+                  className="h-9 shrink-0 max-w-[6rem] bg-neutral-800/70 border border-neutral-700 rounded-lg text-sm text-neutral-300 px-2 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                 >
                   <option value="" disabled>
-                    🔍 Tags
+                    # Tags
                   </option>
                   {tags.map((t) => (
                     <option key={t.name} value={t.name}>

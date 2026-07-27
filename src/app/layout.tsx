@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "@/components/SessionProvider";
+import { SearchProvider } from "@/components/SearchContext";
 import Header from "@/components/Header";
 
 const geistSans = Geist({
@@ -32,8 +33,10 @@ export default function RootLayout({
     <html lang="en" className={`${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-[family-name:var(--font-geist-sans)]">
         <SessionProvider>
-          <Header />
-          <main className="flex-1">{children}</main>
+          <SearchProvider>
+            <Header />
+            <main className="flex-1">{children}</main>
+          </SearchProvider>
         </SessionProvider>
       </body>
     </html>
