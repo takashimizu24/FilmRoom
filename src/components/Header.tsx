@@ -49,6 +49,7 @@ export default function Header() {
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
   const [tags, setTags] = useState<TagCount[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false); // mobile: reveal title box
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -107,33 +108,49 @@ export default function Header() {
         <nav className="flex items-center gap-2 min-w-0 flex-1 justify-end">
           {session ? (
             <>
-              {/* Title search — lives here but filters the home list via context */}
+              {/* Title search: inline box on desktop, magnifier-only on mobile
+                  (tapping it reveals a full-width box below the header). */}
               {pathname === "/" && (
-                <div className="relative flex-1 min-w-0 max-w-xs">
-                  <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500">
+                <>
+                  <div className="relative hidden sm:block flex-1 min-w-0 max-w-xs">
+                    <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500">
+                      <SearchIcon />
+                    </span>
+                    <input
+                      type="text"
+                      value={titleQuery}
+                      onChange={(e) => setTitleQuery(e.target.value)}
+                      placeholder="Search titles"
+                      aria-label="Search by title"
+                      className="w-full h-9 pl-8 pr-2 bg-neutral-800/70 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSearchOpen((o) => !o)}
+                    aria-label="Search titles"
+                    aria-expanded={searchOpen}
+                    className={`sm:hidden inline-flex items-center justify-center h-9 w-9 rounded-lg transition shrink-0 ${
+                      searchOpen || titleQuery
+                        ? "bg-neutral-800 text-white"
+                        : "text-neutral-300 hover:text-white hover:bg-neutral-800"
+                    }`}
+                  >
                     <SearchIcon />
-                  </span>
-                  <input
-                    type="text"
-                    value={titleQuery}
-                    onChange={(e) => setTitleQuery(e.target.value)}
-                    placeholder="Search titles"
-                    aria-label="Search by title"
-                    className="w-full h-9 pl-8 pr-2 bg-neutral-800/70 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
-                  />
-                </div>
+                  </button>
+                </>
               )}
 
-              {/* Tag search */}
+              {/* Tag search — compact "#" dropdown */}
               {tags.length > 0 && (
                 <select
                   value=""
                   onChange={(e) => handleTagSearch(e.target.value)}
                   aria-label="Search by tag"
-                  className="h-9 shrink-0 max-w-[6rem] bg-neutral-800/70 border border-neutral-700 rounded-lg text-sm text-neutral-300 px-2 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+                  className="h-9 shrink-0 w-[3.75rem] bg-neutral-800/70 border border-neutral-700 rounded-lg text-sm text-neutral-300 px-2 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
                 >
                   <option value="" disabled>
-                    # Tags
+                    #
                   </option>
                   {tags.map((t) => (
                     <option key={t.name} value={t.name}>
@@ -214,6 +231,36 @@ export default function Header() {
           )}
         </nav>
       </div>
+
+      {/* Mobile: the title-search box drops in below the bar when toggled. */}
+      {session && pathname === "/" && searchOpen && (
+        <div className="sm:hidden border-t border-white/10 px-3 pb-2 pt-2">
+          <div className="relative max-w-5xl mx-auto">
+            <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500">
+              <SearchIcon />
+            </span>
+            <input
+              type="text"
+              autoFocus
+              value={titleQuery}
+              onChange={(e) => setTitleQuery(e.target.value)}
+              placeholder="Search titles"
+              aria-label="Search by title"
+              className="w-full h-10 pl-8 pr-9 bg-neutral-800/70 border border-neutral-700 rounded-lg text-neutral-100 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+            />
+            {titleQuery && (
+              <button
+                type="button"
+                onClick={() => setTitleQuery("")}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded text-neutral-400 hover:text-neutral-100 text-lg leading-none"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 }
