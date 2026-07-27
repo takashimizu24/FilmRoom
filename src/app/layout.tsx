@@ -30,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-neutral-950 font-[family-name:var(--font-geist-sans)]">
+      <body className="min-h-full flex flex-col font-[family-name:var(--font-geist-sans)]">
         <SessionProvider>
           <Header />
           <main className="flex-1">{children}</main>

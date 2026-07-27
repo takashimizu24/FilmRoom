@@ -270,7 +270,7 @@ export default function HomePage() {
         ) : (
           <div className="space-y-6">
             {mediaItems.map(({ block, key, post }) => (
-              <div key={key} className="bg-neutral-900 rounded-xl border border-neutral-800 p-4">
+              <div key={key} className="glass rounded-xl p-4">
                 <MediaBlock block={block} />
                 <MediaTagList tags={"tags" in block ? block.tags : undefined} colorMap={colorMap} />
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-500 mt-3">
@@ -312,7 +312,7 @@ export default function HomePage() {
               <Link
                 key={post.id}
                 href={`/posts/${post.id}`}
-                className="block bg-neutral-900 rounded-xl border border-neutral-800 p-4 hover:border-neutral-600 transition"
+                className="glass block rounded-xl p-4 hover:border-white/20 transition"
               >
                 <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-1.5">
                   {post.group && <span className="mt-0.5 shrink-0"><GroupBadge group={post.group} /></span>}

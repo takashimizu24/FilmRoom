@@ -20,6 +20,14 @@ export async function isTeamMember(userId: string, teamId: string): Promise<bool
   return !!membership;
 }
 
+export async function isTeamAdmin(userId: string, teamId: string): Promise<boolean> {
+  const membership = await prisma.teamMembership.findUnique({
+    where: { userId_teamId: { userId, teamId } },
+    select: { role: true },
+  });
+  return membership?.role === "admin";
+}
+
 /**
  * Resolves the user's active team: prefers the `activeTeamId` cookie if the
  * user is still a member of it, otherwise falls back to their first team.

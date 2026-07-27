@@ -30,7 +30,7 @@ export default function MediaPicker({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl max-h-[85vh] flex flex-col bg-neutral-900 border border-neutral-700 rounded-xl overflow-hidden"
+        className="glass-strong w-full max-w-2xl max-h-[85vh] flex flex-col rounded-xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800">
@@ -59,7 +59,7 @@ export default function MediaPicker({
               return (
                 <div
                   key={`${item.type}|${item.url}`}
-                  className="flex flex-col bg-neutral-800 border border-neutral-700 rounded-lg overflow-hidden"
+                  className="flex flex-col bg-white/5 border border-white/10 rounded-lg overflow-hidden"
                 >
                   <div className="relative aspect-video min-h-[160px] bg-black flex items-center justify-center">
                     {item.type === "image" && (

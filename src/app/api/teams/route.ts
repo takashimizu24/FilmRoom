@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
       name: name.trim(),
       inviteCode,
       memberships: {
-        create: { userId: session.user.id },
+        // The team creator is its first admin.
+        create: { userId: session.user.id, role: "admin" },
       },
     },
   });

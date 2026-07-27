@@ -10,7 +10,7 @@ interface TeamDetail {
   id: string;
   name: string;
   inviteCode: string;
-  memberships: { id: string; user: { id: string; name: string; email: string } }[];
+  memberships: { id: string; role: string; user: { id: string; name: string; email: string } }[];
 }
 
 export default function TeamPage() {
@@ -53,6 +53,21 @@ export default function TeamPage() {
     await navigator.clipboard.writeText(team.inviteCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleRemoveMember(userId: string, name: string) {
+    if (!team) return;
+    if (!window.confirm(`Remove ${name} from the team?`)) return;
+    const res = await fetch(`/api/teams/${team.id}/members/${userId}`, { method: "DELETE" });
+    if (res.ok) {
+      setTeam({
+        ...team,
+        memberships: team.memberships.filter((m) => m.user.id !== userId),
+      });
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Couldn't remove that member.");
+    }
   }
 
   async function handleSaveName() {
@@ -100,7 +115,7 @@ export default function TeamPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 mb-6">
+      <div className="glass rounded-xl p-6 mb-6">
         {editingName ? (
           <div className="flex gap-2 mb-2">
             <input
@@ -155,24 +170,45 @@ export default function TeamPage() {
         </p>
       </div>
 
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-        <div className="bg-neutral-800 px-4 py-3 border-b border-neutral-700">
+      <div className="glass rounded-xl overflow-hidden">
+        <div className="bg-white/5 px-4 py-3 border-b border-white/10">
           <h2 className="font-semibold text-neutral-300">
             Members ({team.memberships.length})
           </h2>
         </div>
         <ul className="divide-y divide-neutral-800">
-          {team.memberships.map((m) => (
-            <li key={m.id} className="px-4 py-3 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-neutral-300 text-sm font-bold shrink-0">
-                {m.user.name[0]}
-              </div>
-              <div>
-                <div className="text-sm font-medium text-neutral-200">{m.user.name}</div>
-                <div className="text-xs text-neutral-600">{m.user.email}</div>
-              </div>
-            </li>
-          ))}
+          {team.memberships.map((m) => {
+            const isMe = m.user.id === session.user?.id;
+            const iAmAdmin =
+              team.memberships.find((x) => x.user.id === session.user?.id)?.role === "admin";
+            return (
+              <li key={m.id} className="px-4 py-3 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-neutral-300 text-sm font-bold shrink-0">
+                  {m.user.name[0]}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-neutral-200 truncate">{m.user.name}</span>
+                    {m.role === "admin" && (
+                      <span className="shrink-0 text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-neutral-700 text-neutral-200">
+                        Admin
+                      </span>
+                    )}
+                    {isMe && <span className="shrink-0 text-xs text-neutral-600">(you)</span>}
+                  </div>
+                  <div className="text-xs text-neutral-600 truncate">{m.user.email}</div>
+                </div>
+                {iAmAdmin && !isMe && (
+                  <button
+                    onClick={() => handleRemoveMember(m.user.id, m.user.name)}
+                    className="shrink-0 text-xs text-neutral-500 hover:text-red-400 transition px-2 py-1"
+                  >
+                    Remove
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </div>
 

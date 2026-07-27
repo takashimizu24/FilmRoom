@@ -165,8 +165,8 @@ export default function PostPage() {
         </article>
 
         {session ? (
-          <div className="print:hidden bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-            <div className="bg-neutral-800 px-4 py-3 border-b border-neutral-700">
+          <div className="glass print:hidden rounded-xl overflow-hidden">
+            <div className="bg-white/5 px-4 py-3 border-b border-white/10">
               <h3 className="font-semibold text-neutral-300">Comments on the whole post</h3>
             </div>
             <div className="p-4">
@@ -177,7 +177,7 @@ export default function PostPage() {
             </div>
           </div>
         ) : (
-          <div className="print:hidden bg-neutral-900 border border-neutral-800 rounded-xl p-6 text-center">
+          <div className="glass print:hidden rounded-xl p-6 text-center">
             <p className="text-neutral-500 text-sm mb-2">Log in to join the discussion</p>
             <Link
               href="/login"

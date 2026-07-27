@@ -89,7 +89,7 @@ export default function Header() {
   }
 
   return (
-    <header className="bg-neutral-900 border-b border-neutral-800 sticky top-0 z-50">
+    <header className="bg-neutral-900/50 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
       <div className="max-w-5xl mx-auto px-3 sm:px-4 h-14 flex items-center justify-between gap-2 sm:gap-4">
         <Link href="/" className="shrink-0 flex items-center" aria-label="FilmRoom home">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -138,7 +138,7 @@ export default function Header() {
                 </button>
 
                 {menuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-60 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl overflow-hidden z-50 text-sm">
+                  <div className="glass-strong absolute right-0 top-full mt-2 w-60 rounded-lg shadow-xl overflow-hidden z-50 text-sm">
                     <div className="px-4 py-3 border-b border-neutral-800">
                       <div className="text-neutral-200 font-medium truncate">{session.user?.name}</div>
                       {session.user?.email && (
