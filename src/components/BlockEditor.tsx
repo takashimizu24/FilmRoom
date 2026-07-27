@@ -131,6 +131,7 @@ export default function BlockEditor({
   mediaLibrary?: MediaItem[];
 }) {
   const [uploading, setUploading] = useState<number | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null); // "Uploading 2 of 5…"
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
@@ -257,22 +258,34 @@ export default function BlockEditor({
   }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || pendingInsertIndex === null || !pendingInsertType) return;
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length || pendingInsertIndex === null || !pendingInsertType) {
+      e.target.value = "";
+      return;
+    }
 
-    setUploading(pendingInsertIndex);
-    const url = await uploadFile(file);
-    if (url) {
-      const newBlock: Block =
-        pendingInsertType === "video"
-          ? { type: "video", url, tags: [] }
-          : { type: "image", url, tags: [] };
-      const next = [...blocks];
-      next.splice(pendingInsertIndex, 0, newBlock);
-      onChange(next);
+    const type = pendingInsertType;
+    let insertAt = pendingInsertIndex;
+    // Work on a local copy: several files are uploaded one at a time (safer for
+    // the server than many big uploads at once) and each block is appended as it
+    // finishes, so the picked files land in order.
+    let working = [...blocks];
+
+    for (let i = 0; i < files.length; i++) {
+      setUploading(insertAt);
+      setUploadProgress(files.length > 1 ? `Uploading ${i + 1} of ${files.length}…` : null);
+      const url = await uploadFile(files[i]);
+      if (url) {
+        const newBlock: Block =
+          type === "video" ? { type: "video", url, tags: [] } : { type: "image", url, tags: [] };
+        working = [...working.slice(0, insertAt), newBlock, ...working.slice(insertAt)];
+        onChange(working);
+        insertAt++;
+      }
     }
 
     setUploading(null);
+    setUploadProgress(null);
     setPendingInsertIndex(null);
     setPendingInsertType(null);
     e.target.value = "";
@@ -321,6 +334,7 @@ export default function BlockEditor({
         ref={fileInputRef}
         type="file"
         accept="video/*"
+        multiple
         className="hidden"
         onChange={handleFileUpload}
       />
@@ -328,6 +342,7 @@ export default function BlockEditor({
         ref={imageInputRef}
         type="file"
         accept="image/*,.heic,.HEIC"
+        multiple
         className="hidden"
         onChange={handleFileUpload}
       />
@@ -493,7 +508,9 @@ export default function BlockEditor({
       ))}
 
       {uploading !== null && (
-        <div className="text-center py-3 text-sm text-neutral-500">Uploading...</div>
+        <div className="text-center py-3 text-sm text-neutral-500">
+          {uploadProgress ?? "Uploading..."}
+        </div>
       )}
 
       {/* Add block buttons */}
