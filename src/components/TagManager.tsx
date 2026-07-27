@@ -32,8 +32,8 @@ export default function TagManager({ teamId }: { teamId: string }) {
   }
 
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden mt-6">
-      <div className="bg-neutral-800 px-4 py-3 border-b border-neutral-700">
+    <div className="glass rounded-xl overflow-hidden mt-6">
+      <div className="bg-white/5 px-4 py-3 border-b border-white/10">
         <h2 className="font-semibold text-neutral-300">Tag Colors</h2>
       </div>
       {loading ? (
@@ -43,7 +43,7 @@ export default function TagManager({ teamId }: { teamId: string }) {
           No tags yet. Tags appear here once you add them to posts or clips.
         </div>
       ) : (
-        <ul className="divide-y divide-neutral-800">
+        <ul className="divide-y divide-white/10">
           {tags.map((t) => (
             <li key={t.name} className="px-4 py-3 flex items-center gap-3">
               <span

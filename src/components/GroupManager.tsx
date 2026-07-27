@@ -72,15 +72,15 @@ export default function GroupManager({ teamId }: { teamId: string }) {
   }
 
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden mt-6">
-      <div className="bg-neutral-800 px-4 py-3 border-b border-neutral-700">
+    <div className="glass rounded-xl overflow-hidden mt-6">
+      <div className="bg-white/5 px-4 py-3 border-b border-white/10">
         <h2 className="font-semibold text-neutral-300">Groups</h2>
       </div>
 
       {loading ? (
         <div className="px-4 py-3 text-sm text-neutral-500">Loading...</div>
       ) : (
-        <ul className="divide-y divide-neutral-800">
+        <ul className="divide-y divide-white/10">
           {groups.map((g) => (
             <li key={g.id} className="px-4 py-3 flex items-center gap-3">
               <span
@@ -116,7 +116,7 @@ export default function GroupManager({ teamId }: { teamId: string }) {
       )}
 
       {/* Add group */}
-      <div className="px-4 py-3 border-t border-neutral-800 flex items-center gap-2">
+      <div className="px-4 py-3 border-t border-white/10 flex items-center gap-2">
         <input
           type="color"
           value={newColor}

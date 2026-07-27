@@ -13,6 +13,14 @@ interface TeamDetail {
   memberships: { id: string; role: string; user: { id: string; name: string; email: string } }[];
 }
 
+function EditIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    </svg>
+  );
+}
+
 export default function TeamPage() {
   const { data: session, status } = useSession();
   const [team, setTeam] = useState<TeamDetail | null>(null);
@@ -22,6 +30,7 @@ export default function TeamPage() {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editMembers, setEditMembers] = useState(false);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -113,6 +122,9 @@ export default function TeamPage() {
     );
   }
 
+  const iAmAdmin =
+    team.memberships.find((m) => m.user.id === session.user?.id)?.role === "admin";
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="glass rounded-xl p-6 mb-6">
@@ -171,16 +183,22 @@ export default function TeamPage() {
       </div>
 
       <div className="glass rounded-xl overflow-hidden">
-        <div className="bg-white/5 px-4 py-3 border-b border-white/10">
+        <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between gap-2">
           <h2 className="font-semibold text-neutral-300">
             Members ({team.memberships.length})
           </h2>
+          {iAmAdmin && team.memberships.length > 1 && (
+            <button
+              onClick={() => setEditMembers((v) => !v)}
+              className="text-xs text-neutral-400 hover:text-neutral-100 transition inline-flex items-center gap-1"
+            >
+              {editMembers ? "Done" : (<><EditIcon /> Edit</>)}
+            </button>
+          )}
         </div>
-        <ul className="divide-y divide-neutral-800">
+        <ul className="divide-y divide-white/10">
           {team.memberships.map((m) => {
             const isMe = m.user.id === session.user?.id;
-            const iAmAdmin =
-              team.memberships.find((x) => x.user.id === session.user?.id)?.role === "admin";
             return (
               <li key={m.id} className="px-4 py-3 flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-neutral-300 text-sm font-bold shrink-0">
@@ -198,10 +216,10 @@ export default function TeamPage() {
                   </div>
                   <div className="text-xs text-neutral-600 truncate">{m.user.email}</div>
                 </div>
-                {iAmAdmin && !isMe && (
+                {iAmAdmin && !isMe && editMembers && (
                   <button
                     onClick={() => handleRemoveMember(m.user.id, m.user.name)}
-                    className="shrink-0 text-xs text-neutral-500 hover:text-red-400 transition px-2 py-1"
+                    className="shrink-0 text-xs font-medium text-red-400 hover:text-red-300 border border-red-400/40 hover:border-red-300/70 rounded-md px-2.5 py-1 transition"
                   >
                     Remove
                   </button>
