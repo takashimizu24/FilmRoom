@@ -39,7 +39,12 @@ export async function GET(request: NextRequest) {
     const postTagNames = post.tags.map((t) => t.name);
     const blocks = parseBlocks(post.blocks);
     for (const block of blocks) {
-      if (block.type !== "video" && block.type !== "image" && block.type !== "youtube") {
+      if (
+        block.type !== "video" &&
+        block.type !== "image" &&
+        block.type !== "youtube" &&
+        block.type !== "carousel"
+      ) {
         continue;
       }
       const searchable = new Set<string>([...(block.tags ?? []), ...postTagNames]);

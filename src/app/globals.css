@@ -61,7 +61,7 @@ body {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(to top left, var(--group-color, transparent), transparent 55%);
+  background: linear-gradient(to top left, var(--group-color, transparent), transparent 30%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
           mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
