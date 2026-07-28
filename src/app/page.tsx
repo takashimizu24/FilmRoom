@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import type { Block } from "@/lib/types";
@@ -335,10 +335,12 @@ export default function HomePage() {
                 href={`/posts/${post.id}`}
                 style={
                   post.group?.color
-                    ? { borderColor: hexAlpha(post.group.color, 0.55) ?? undefined }
+                    ? ({ "--group-color": hexAlpha(post.group.color, 0.9) } as CSSProperties)
                     : undefined
                 }
-                className="glass block rounded-xl p-4 hover:border-white/20 transition"
+                className={`glass relative block rounded-xl p-4 hover:border-white/20 transition ${
+                  post.group?.color ? "group-border" : ""
+                }`}
               >
                 <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-1.5">
                   {post.group && <span className="mt-0.5 shrink-0"><GroupBadge group={post.group} /></span>}
@@ -371,14 +373,14 @@ export default function HomePage() {
 
       {/* Tag list — placed below the post list */}
       {tags.length > 0 && (
-        <div className="mt-8 pt-6 border-t border-neutral-800 space-y-3">
+        <div className="mt-8 pt-6 border-t border-white/10 space-y-3">
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setActiveTags([])}
-              className={`px-3 py-1 rounded-full text-xs transition ${
+              className={`px-3 py-1 rounded-full text-xs border backdrop-blur-md transition ${
                 activeTags.length === 0
-                  ? "bg-neutral-200 text-neutral-900"
-                  : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
+                  ? "bg-white/15 border-white/25 text-neutral-100"
+                  : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
               }`}
             >
               All Posts
@@ -390,10 +392,22 @@ export default function HomePage() {
                   key={tag.name}
                   onClick={() => toggleTag(tag.name)}
                   aria-pressed={selected}
-                  style={tag.color ? { backgroundColor: tag.color, color: contrastText(tag.color) } : undefined}
-                  className={`px-3 py-1 rounded-full text-xs transition ${
-                    selected ? "ring-2 ring-neutral-100 ring-offset-1 ring-offset-neutral-950" : ""
-                  } ${tag.color ? "" : selected ? "bg-neutral-200 text-neutral-900" : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"}`}
+                  style={
+                    tag.color
+                      ? {
+                          backgroundColor: hexAlpha(tag.color, selected ? 0.32 : 0.16) ?? undefined,
+                          borderColor: hexAlpha(tag.color, selected ? 0.75 : 0.4) ?? undefined,
+                          color: tag.color,
+                        }
+                      : undefined
+                  }
+                  className={`px-3 py-1 rounded-full text-xs border backdrop-blur-md transition ${
+                    tag.color
+                      ? ""
+                      : selected
+                        ? "bg-white/15 border-white/25 text-neutral-100"
+                        : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
+                  }`}
                 >
                   {selected ? "✓ " : ""}#{tag.name} ({tag.count})
                 </button>

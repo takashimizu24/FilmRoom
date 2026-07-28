@@ -51,6 +51,24 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+/* Group-colour accent on a card's border: strongest at the bottom-right, fading
+   to transparent toward the top-left. A masked pseudo-element draws only the
+   1px ring, so it respects the rounded corners and layers over the glass border.
+   Set --group-color inline per card. */
+.group-border::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(to top left, var(--group-color, transparent), transparent 55%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+}
+
 /* iOS Safari auto-zooms when focusing a form control whose font-size is under
    16px, and never zooms back out. Force at least 16px on touch-sized screens so
    focusing an input never triggers that zoom (layout stays put during typing).
