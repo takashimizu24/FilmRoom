@@ -226,7 +226,7 @@ export default function HomePage() {
   );
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-3 sm:px-4 py-8">
       <div className="flex items-baseline gap-2 mb-6 min-w-0">
         <h1 className="text-2xl font-bold text-neutral-100 shrink-0">
           {activeTags.length > 0 ? `Clips tagged ${tagLabel}` : "Posts"}
