@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import type { Block } from "@/lib/types";
 import { YouTubePlayer, UploadedVideo } from "@/components/VideoPlayer";
+import MediaCarousel from "@/components/MediaCarousel";
 import GroupBadge, { FolderIcon } from "@/components/GroupBadge";
 import TagList from "@/components/TagList";
 import { useSearch } from "@/components/SearchContext";
@@ -41,12 +42,23 @@ function getMediaCounts(blocks: Block[]) {
   for (const b of blocks) {
     if (b.type === "video" || b.type === "youtube") videos++;
     if (b.type === "image") images++;
+    if (b.type === "carousel") {
+      for (const it of b.items) {
+        if (it.type === "video") videos++;
+        else images++;
+      }
+    }
   }
   return { videos, images };
 }
 
 function isMedia(block: Block): boolean {
-  return block.type === "video" || block.type === "image" || block.type === "youtube";
+  return (
+    block.type === "video" ||
+    block.type === "image" ||
+    block.type === "youtube" ||
+    block.type === "carousel"
+  );
 }
 
 function MediaTagList({ tags, colorMap }: { tags?: string[]; colorMap: Map<string, string | null> }) {
@@ -61,6 +73,9 @@ function MediaTagList({ tags, colorMap }: { tags?: string[]; colorMap: Map<strin
 function MediaBlock({ block }: { block: Block }) {
   if (block.type === "youtube") {
     return <YouTubePlayer url={block.url} startTime={block.startTime} endTime={block.endTime} />;
+  }
+  if (block.type === "carousel") {
+    return <MediaCarousel items={block.items} />;
   }
   if (block.type === "video") {
     return <UploadedVideo url={block.url} />;

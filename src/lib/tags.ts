@@ -5,7 +5,7 @@ export function mediaTagNames(blocks: Block[]): string[] {
   const names: string[] = [];
   for (const b of blocks) {
     if (
-      (b.type === "video" || b.type === "image" || b.type === "youtube") &&
+      (b.type === "video" || b.type === "image" || b.type === "youtube" || b.type === "carousel") &&
       Array.isArray(b.tags)
     ) {
       for (const t of b.tags) {

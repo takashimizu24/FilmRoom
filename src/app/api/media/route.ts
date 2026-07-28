@@ -48,6 +48,23 @@ export async function GET(request: NextRequest) {
   // occurrence of each url wins, so its caption is the most recently set one.
   for (const post of posts) {
     for (const b of parseBlocks(post.blocks)) {
+      // Carousel items are individual clips too — surface each one for reuse.
+      if (b.type === "carousel") {
+        for (const it of b.items) {
+          if (!it.url) continue;
+          const key = `${it.type}|${it.url}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          items.push({
+            type: it.type,
+            url: it.url,
+            postTitle: post.title,
+            caption: b.caption ?? "",
+            sortTs: uploadTime(it.url, post.createdAt.getTime()),
+          });
+        }
+        continue;
+      }
       if (b.type !== "video" && b.type !== "image" && b.type !== "youtube") continue;
       if (!b.url) continue;
       const key = `${b.type}|${b.url}`;

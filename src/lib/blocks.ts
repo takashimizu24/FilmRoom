@@ -8,9 +8,12 @@ export function blockLabel(block: Block, index: number): string {
     const preview = block.content.trim().replace(/\s+/g, " ").slice(0, 24);
     return preview ? `Text #${n}: ${preview}` : `Text #${n}`;
   }
+  const caption = "caption" in block && block.caption ? `: ${block.caption}` : "";
+  if (block.type === "carousel") {
+    return `🎞 Carousel #${n} (${block.items.length})${caption}`;
+  }
   const icon = block.type === "image" ? "🖼" : block.type === "video" ? "🎬" : "▶";
   const type = block.type === "youtube" ? "YouTube" : block.type === "image" ? "Image" : "Video";
-  const caption = "caption" in block && block.caption ? `: ${block.caption}` : "";
   return `${icon} ${type} #${n}${caption}`;
 }
 

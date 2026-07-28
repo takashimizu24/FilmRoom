@@ -135,6 +135,8 @@ export default function BlockEditor({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
+  const carouselInputRef = useRef<HTMLInputElement>(null);
+  const [carouselTarget, setCarouselTarget] = useState<number | null>(null);
   const [pendingInsertIndex, setPendingInsertIndex] = useState<number | null>(null);
   const [pendingInsertType, setPendingInsertType] = useState<"video" | "image" | null>(null);
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
@@ -265,29 +267,92 @@ export default function BlockEditor({
     }
 
     const type = pendingInsertType;
-    let insertAt = pendingInsertIndex;
-    // Work on a local copy: several files are uploaded one at a time (safer for
-    // the server than many big uploads at once) and each block is appended as it
-    // finishes, so the picked files land in order.
-    let working = [...blocks];
+    const insertAt = pendingInsertIndex;
 
+    // Upload the picked files one at a time (safer for the server than many big
+    // uploads at once), collecting the stored urls in order.
+    const uploaded: { type: "video" | "image"; url: string }[] = [];
     for (let i = 0; i < files.length; i++) {
       setUploading(insertAt);
       setUploadProgress(files.length > 1 ? `Uploading ${i + 1} of ${files.length}…` : null);
       const url = await uploadFile(files[i]);
-      if (url) {
-        const newBlock: Block =
-          type === "video" ? { type: "video", url, tags: [] } : { type: "image", url, tags: [] };
-        working = [...working.slice(0, insertAt), newBlock, ...working.slice(insertAt)];
-        onChange(working);
-        insertAt++;
-      }
+      if (url) uploaded.push({ type, url });
+    }
+
+    if (uploaded.length > 0) {
+      // One file → a single media block (unchanged). Several → a swipeable
+      // carousel that keeps them in one vertical slot.
+      const newBlock: Block =
+        uploaded.length === 1
+          ? { type, url: uploaded[0].url, tags: [] }
+          : { type: "carousel", items: uploaded, tags: [] };
+      const next = [...blocks];
+      next.splice(insertAt, 0, newBlock);
+      onChange(next);
     }
 
     setUploading(null);
     setUploadProgress(null);
     setPendingInsertIndex(null);
     setPendingInsertType(null);
+    e.target.value = "";
+  }
+
+  // ----- carousel editing -----
+  function removeCarouselItem(bi: number, ii: number) {
+    const b = blocks[bi];
+    if (b.type !== "carousel") return;
+    const items = b.items.filter((_, k) => k !== ii);
+    if (items.length === 0) removeBlock(bi);
+    else if (items.length === 1) updateBlock(bi, { type: items[0].type, url: items[0].url, tags: b.tags ?? [], caption: b.caption });
+    else updateBlock(bi, { ...b, items });
+  }
+
+  function moveCarouselItem(bi: number, ii: number, dir: -1 | 1) {
+    const b = blocks[bi];
+    if (b.type !== "carousel") return;
+    const j = ii + dir;
+    if (j < 0 || j >= b.items.length) return;
+    const items = [...b.items];
+    [items[ii], items[j]] = [items[j], items[ii]];
+    updateBlock(bi, { ...b, items });
+  }
+
+  function handleCarouselAddClick(index: number) {
+    const b = blocks[index];
+    if (b.type !== "carousel") return;
+    setCarouselTarget(index);
+    const t = b.items[0]?.type ?? "video";
+    if (carouselInputRef.current) {
+      carouselInputRef.current.accept = t === "video" ? "video/*" : "image/*,.heic,.HEIC";
+    }
+    carouselInputRef.current?.click();
+  }
+
+  async function handleCarouselAdd(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    const index = carouselTarget;
+    if (!files.length || index === null || blocks[index]?.type !== "carousel") {
+      setCarouselTarget(null);
+      e.target.value = "";
+      return;
+    }
+    const base = blocks[index];
+    if (base.type !== "carousel") return;
+    const t = base.items[0]?.type ?? "video";
+    setUploading(index);
+    let items = [...base.items];
+    for (let k = 0; k < files.length; k++) {
+      setUploadProgress(files.length > 1 ? `Uploading ${k + 1} of ${files.length}…` : null);
+      const url = await uploadFile(files[k]);
+      if (url) {
+        items = [...items, { type: t, url }];
+        updateBlock(index, { ...base, items });
+      }
+    }
+    setUploading(null);
+    setUploadProgress(null);
+    setCarouselTarget(null);
     e.target.value = "";
   }
 
@@ -351,6 +416,13 @@ export default function BlockEditor({
         type="file"
         className="hidden"
         onChange={handleReplaceFile}
+      />
+      <input
+        ref={carouselInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleCarouselAdd}
       />
 
       {blocks.map((block, i) => (
@@ -492,6 +564,80 @@ export default function BlockEditor({
                     {formatTime(block.startTime)} – {block.endTime > 0 ? formatTime(block.endTime) : "end"}
                   </span>
                 ) : null}
+              </div>
+              <CaptionInput
+                value={block.caption ?? ""}
+                onChange={(v) => updateBlock(i, { ...block, caption: v })}
+              />
+              <MediaTags
+                tags={block.tags ?? []}
+                onChange={(tags) => updateBlock(i, { ...block, tags })}
+                suggestions={tagSuggestions}
+              />
+            </div>
+          )}
+
+          {block.type === "carousel" && (
+            <div>
+              <div className="text-xs text-neutral-500 mb-1.5">
+                Carousel — {block.items.length} items (swipe horizontally in the post)
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {block.items.map((it, j) => (
+                  <div key={j} className="relative shrink-0 w-40">
+                    {it.type === "video" ? (
+                      <video
+                        src={`${it.url}#t=0.1`}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="w-40 h-24 object-cover rounded-lg bg-black"
+                      />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={it.url} alt="" className="w-40 h-24 object-cover rounded-lg" />
+                    )}
+                    <span className="absolute top-1 left-1 text-[10px] px-1 rounded bg-black/70 text-neutral-200">
+                      {j + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeCarouselItem(i, j)}
+                      aria-label="Remove from carousel"
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center bg-neutral-600 hover:bg-neutral-500 text-neutral-100 rounded-full text-xs shadow"
+                    >
+                      ×
+                    </button>
+                    <div className="absolute bottom-1 inset-x-1 flex justify-between">
+                      <button
+                        type="button"
+                        onClick={() => moveCarouselItem(i, j, -1)}
+                        disabled={j === 0}
+                        aria-label="Move left"
+                        className="w-5 h-5 flex items-center justify-center bg-black/60 hover:bg-black/80 text-white rounded disabled:opacity-30"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveCarouselItem(i, j, 1)}
+                        disabled={j === block.items.length - 1}
+                        aria-label="Move right"
+                        className="w-5 h-5 flex items-center justify-center bg-black/60 hover:bg-black/80 text-white rounded disabled:opacity-30"
+                      >
+                        ›
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => handleCarouselAddClick(i)}
+                  disabled={uploading === i}
+                  className="shrink-0 w-40 h-24 border-2 border-dashed border-neutral-700 hover:border-neutral-500 rounded-lg text-neutral-400 hover:text-neutral-200 flex items-center justify-center text-sm transition disabled:opacity-50"
+                >
+                  {uploading === i ? "Uploading…" : "+ Add"}
+                </button>
               </div>
               <CaptionInput
                 value={block.caption ?? ""}

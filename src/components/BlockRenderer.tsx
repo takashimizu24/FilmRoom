@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Block } from "@/lib/types";
 import { YouTubePlayer, UploadedVideo } from "./VideoPlayer";
+import MediaCarousel from "./MediaCarousel";
 import TagList from "./TagList";
 import BlockComments from "./BlockComments";
 import { blockAnchorId } from "@/lib/blocks";
@@ -112,6 +113,9 @@ export default function BlockRenderer({
             media = (
               <YouTubePlayer url={block.url} startTime={block.startTime} endTime={block.endTime} />
             );
+            break;
+          case "carousel":
+            media = <MediaCarousel items={block.items} />;
             break;
           default:
             return null;
