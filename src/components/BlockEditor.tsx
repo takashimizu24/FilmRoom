@@ -318,36 +318,53 @@ export default function BlockEditor({
     updateBlock(bi, { ...b, items });
   }
 
-  function handleCarouselAddClick(index: number) {
+  // Add more media to a block. Works for a carousel (append) and for a single
+  // video/image block (converts it into a carousel with the original first).
+  function handleAddMediaClick(index: number) {
     const b = blocks[index];
-    if (b.type !== "carousel") return;
+    let t: "video" | "image";
+    if (b.type === "carousel") t = b.items[0]?.type ?? "video";
+    else if (b.type === "video" || b.type === "image") t = b.type;
+    else return;
     setCarouselTarget(index);
-    const t = b.items[0]?.type ?? "video";
     if (carouselInputRef.current) {
       carouselInputRef.current.accept = t === "video" ? "video/*" : "image/*,.heic,.HEIC";
     }
     carouselInputRef.current?.click();
   }
 
-  async function handleCarouselAdd(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleAddMedia(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     const index = carouselTarget;
-    if (!files.length || index === null || blocks[index]?.type !== "carousel") {
+    const base = index === null ? null : blocks[index];
+    if (
+      !files.length ||
+      index === null ||
+      !base ||
+      (base.type !== "carousel" && base.type !== "video" && base.type !== "image")
+    ) {
       setCarouselTarget(null);
       e.target.value = "";
       return;
     }
-    const base = blocks[index];
-    if (base.type !== "carousel") return;
-    const t = base.items[0]?.type ?? "video";
+
+    const t: "video" | "image" =
+      base.type === "carousel" ? base.items[0]?.type ?? "video" : base.type;
+    const tags = base.tags ?? [];
+    const caption = base.caption;
+    // Existing carousel items, or the single block as the first slide.
+    let items =
+      base.type === "carousel"
+        ? [...base.items]
+        : [{ type: base.type, url: base.url }];
+
     setUploading(index);
-    let items = [...base.items];
     for (let k = 0; k < files.length; k++) {
       setUploadProgress(files.length > 1 ? `Uploading ${k + 1} of ${files.length}…` : null);
       const url = await uploadFile(files[k]);
       if (url) {
         items = [...items, { type: t, url }];
-        updateBlock(index, { ...base, items });
+        updateBlock(index, { type: "carousel", items, tags, caption });
       }
     }
     setUploading(null);
@@ -422,7 +439,7 @@ export default function BlockEditor({
         type="file"
         multiple
         className="hidden"
-        onChange={handleCarouselAdd}
+        onChange={handleAddMedia}
       />
 
       {blocks.map((block, i) => (
@@ -490,14 +507,25 @@ export default function BlockEditor({
             <div>
               <div className="text-xs text-neutral-500 mb-1 flex items-center justify-between">
                 <span>Image</span>
-                <button
-                  type="button"
-                  onClick={() => handleReplaceClick(i)}
-                  disabled={uploading === i}
-                  className="text-neutral-400 hover:text-neutral-200 transition disabled:opacity-50"
-                >
-                  {uploading === i ? "Replacing…" : "Replace"}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleAddMediaClick(i)}
+                    disabled={uploading === i}
+                    title="Add more to make a carousel"
+                    className="text-neutral-400 hover:text-neutral-200 transition disabled:opacity-50"
+                  >
+                    {uploading === i ? "Uploading…" : "+ Add"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleReplaceClick(i)}
+                    disabled={uploading === i}
+                    className="text-neutral-400 hover:text-neutral-200 transition disabled:opacity-50"
+                  >
+                    {uploading === i ? "Replacing…" : "Replace"}
+                  </button>
+                </div>
               </div>
               <img src={block.url} alt="" className="max-h-64 rounded-lg" />
               <CaptionInput
@@ -516,14 +544,25 @@ export default function BlockEditor({
             <div>
               <div className="text-xs text-neutral-500 mb-1 flex items-center justify-between">
                 <span>Video</span>
-                <button
-                  type="button"
-                  onClick={() => handleReplaceClick(i)}
-                  disabled={uploading === i}
-                  className="text-neutral-400 hover:text-neutral-200 transition disabled:opacity-50"
-                >
-                  {uploading === i ? "Replacing…" : "Replace"}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleAddMediaClick(i)}
+                    disabled={uploading === i}
+                    title="Add more to make a carousel"
+                    className="text-neutral-400 hover:text-neutral-200 transition disabled:opacity-50"
+                  >
+                    {uploading === i ? "Uploading…" : "+ Add"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleReplaceClick(i)}
+                    disabled={uploading === i}
+                    className="text-neutral-400 hover:text-neutral-200 transition disabled:opacity-50"
+                  >
+                    {uploading === i ? "Replacing…" : "Replace"}
+                  </button>
+                </div>
               </div>
               <video src={block.url} controls playsInline className="max-h-64 rounded-lg" />
               <CaptionInput
@@ -632,7 +671,7 @@ export default function BlockEditor({
                 ))}
                 <button
                   type="button"
-                  onClick={() => handleCarouselAddClick(i)}
+                  onClick={() => handleAddMediaClick(i)}
                   disabled={uploading === i}
                   className="shrink-0 w-40 h-24 border-2 border-dashed border-neutral-700 hover:border-neutral-500 rounded-lg text-neutral-400 hover:text-neutral-200 flex items-center justify-center text-sm transition disabled:opacity-50"
                 >
