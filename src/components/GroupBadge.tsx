@@ -1,4 +1,4 @@
-import { contrastText } from "@/lib/color";
+import { hexAlpha } from "@/lib/color";
 
 export function FolderIcon({ className = "" }: { className?: string }) {
   return (
@@ -28,11 +28,15 @@ export default function GroupBadge({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md font-medium whitespace-nowrap shrink-0 ${className}`}
+      className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md font-medium border backdrop-blur-md whitespace-nowrap shrink-0 ${className}`}
       style={
         group.color
-          ? { backgroundColor: group.color, color: contrastText(group.color) }
-          : { backgroundColor: "#3f3f46", color: "#e5e5e5" }
+          ? {
+              backgroundColor: hexAlpha(group.color, 0.16) ?? undefined,
+              borderColor: hexAlpha(group.color, 0.4) ?? undefined,
+              color: group.color,
+            }
+          : { backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)", color: "#d4d4d4" }
       }
     >
       <FolderIcon />
