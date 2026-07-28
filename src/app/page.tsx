@@ -11,14 +11,6 @@ import TagList from "@/components/TagList";
 import { useSearch } from "@/components/SearchContext";
 import { hexAlpha } from "@/lib/color";
 
-// `text-box-trim` isn't part of the standard CSSProperties type yet, and the CSS
-// build pipeline (Lightning CSS) drops it from stylesheets, so it's declared here
-// as an inline style where it survives untouched.
-const titleTrimStyle = {
-  textBoxTrim: "trim-start",
-  textBoxEdge: "cap alphabetic",
-} as CSSProperties;
-
 interface Tag {
   name: string;
   count: number;
@@ -363,14 +355,7 @@ export default function HomePage() {
               >
                 <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-1.5">
                   {post.group && <span className="mt-0.5 shrink-0"><GroupBadge group={post.group} /></span>}
-                  <h2
-                    className="text-base font-semibold text-neutral-100 break-words min-w-0"
-                    // Trim the title's cap-height leading so the visible space above
-                    // the text equals the 16px padding on the sides and bottom.
-                    // Applied inline because the CSS build pipeline drops
-                    // `text-box-trim` from stylesheets.
-                    style={titleTrimStyle}
-                  >
+                  <h2 className="text-base font-semibold text-neutral-100 break-words min-w-0">
                     {post.title}
                   </h2>
                 </div>
