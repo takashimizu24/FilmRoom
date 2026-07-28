@@ -9,7 +9,7 @@ import MediaCarousel from "@/components/MediaCarousel";
 import GroupBadge, { FolderIcon } from "@/components/GroupBadge";
 import TagList from "@/components/TagList";
 import { useSearch } from "@/components/SearchContext";
-import { hexAlpha } from "@/lib/color";
+import { hexAlpha, contrastText } from "@/lib/color";
 
 interface Tag {
   name: string;
@@ -244,10 +244,10 @@ export default function HomePage() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setActiveGroupId(null)}
-              className={`px-3 py-1 rounded-md text-xs border backdrop-blur-md transition ${
+              className={`px-3 py-1 rounded-md text-xs transition ${
                 activeGroupId === null
-                  ? "bg-white/15 border-white/25 text-neutral-100"
-                  : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
+                  ? "bg-neutral-200 text-neutral-900"
+                  : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
               }`}
             >
               All Groups
@@ -258,24 +258,14 @@ export default function HomePage() {
                 <button
                   key={g.id}
                   onClick={() => setActiveGroupId(active ? null : g.id)}
-                  style={
-                    g.color
-                      ? {
-                          backgroundColor: hexAlpha(g.color, active ? 0.32 : 0.16) ?? undefined,
-                          borderColor: hexAlpha(g.color, active ? 0.75 : 0.4) ?? undefined,
-                          color: g.color,
-                        }
-                      : undefined
-                  }
-                  className={`px-3 py-1 rounded-md text-xs font-medium border backdrop-blur-md transition inline-flex items-center gap-1.5 ${
-                    g.color
-                      ? ""
-                      : active
-                        ? "bg-white/15 border-white/25 text-neutral-100"
-                        : "bg-white/5 border-white/10 text-neutral-300 hover:bg-white/10"
+                  style={active ? { backgroundColor: g.color || "#e5e5e5", color: contrastText(g.color) } : undefined}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition inline-flex items-center gap-1.5 ${
+                    active ? "" : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
                   }`}
                 >
-                  <FolderIcon />
+                  <span style={active ? undefined : { color: g.color || "#a3a3a3" }} className="inline-flex">
+                    <FolderIcon />
+                  </span>
                   {g.name} ({g.count})
                 </button>
               );
