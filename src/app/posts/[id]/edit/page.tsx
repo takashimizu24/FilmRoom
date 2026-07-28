@@ -22,6 +22,7 @@ export default function EditPostPage() {
 
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
+  const [isAuthor, setIsAuthor] = useState(false);
   const [title, setTitle] = useState("");
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [tags, setTags] = useState<string[]>([]);
@@ -42,28 +43,29 @@ export default function EditPostPage() {
           setLoading(false);
           return;
         }
-        const isAuthor = data.authorId && data.authorId === session?.user?.id;
-        setAllowed(!!isAuthor);
-        if (isAuthor) {
-          setTitle(data.title);
-          setBlocks(data.blocks);
-          setTags((data.tags ?? []).map((t: { name: string }) => t.name));
-          setGroupId(data.groupId ?? "");
-          if (data.teamId) {
-            fetch(`/api/groups?teamId=${data.teamId}`)
-              .then((r) => (r.ok ? r.json() : []))
-              .then((gs) => setGroups(Array.isArray(gs) ? gs : []));
-            fetch(`/api/tags?teamId=${data.teamId}`)
-              .then((r) => (r.ok ? r.json() : []))
-              .then((ts: TagSuggestion[]) =>
-                setTagSuggestions(Array.isArray(ts) ? ts.map((t) => ({ name: t.name, color: t.color })) : [])
-              )
-              .catch(() => setTagSuggestions([]));
-            fetch(`/api/media?teamId=${data.teamId}`)
-              .then((r) => (r.ok ? r.json() : []))
-              .then((ms: MediaItem[]) => setMediaLibrary(Array.isArray(ms) ? ms : []))
-              .catch(() => setMediaLibrary([]));
-          }
+        // Loading the post means the viewer is a member of its team (the API
+        // 403s otherwise), so any member may edit it / add content. Only the
+        // author sees the "delete whole post" action.
+        setAllowed(true);
+        setIsAuthor(!!data.authorId && data.authorId === session?.user?.id);
+        setTitle(data.title);
+        setBlocks(data.blocks);
+        setTags((data.tags ?? []).map((t: { name: string }) => t.name));
+        setGroupId(data.groupId ?? "");
+        if (data.teamId) {
+          fetch(`/api/groups?teamId=${data.teamId}`)
+            .then((r) => (r.ok ? r.json() : []))
+            .then((gs) => setGroups(Array.isArray(gs) ? gs : []));
+          fetch(`/api/tags?teamId=${data.teamId}`)
+            .then((r) => (r.ok ? r.json() : []))
+            .then((ts: TagSuggestion[]) =>
+              setTagSuggestions(Array.isArray(ts) ? ts.map((t) => ({ name: t.name, color: t.color })) : [])
+            )
+            .catch(() => setTagSuggestions([]));
+          fetch(`/api/media?teamId=${data.teamId}`)
+            .then((r) => (r.ok ? r.json() : []))
+            .then((ms: MediaItem[]) => setMediaLibrary(Array.isArray(ms) ? ms : []))
+            .catch(() => setMediaLibrary([]));
         }
         setLoading(false);
       });
@@ -129,7 +131,7 @@ export default function EditPostPage() {
   if (!allowed) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-12 text-center text-neutral-500">
-        <p className="mb-2">You can only edit posts you created.</p>
+        <p className="mb-2">You don&apos;t have access to this post.</p>
         <Link href={`/posts/${id}`} className="text-neutral-400 hover:text-neutral-200 text-sm transition">
           Back to post
         </Link>
@@ -234,16 +236,18 @@ export default function EditPostPage() {
           </Link>
         </div>
 
-        <div className="pt-4 border-t border-neutral-800">
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="w-full px-4 py-2.5 bg-neutral-900 hover:bg-red-900 border border-neutral-800 hover:border-red-800 rounded-lg text-sm text-neutral-500 hover:text-red-200 transition disabled:opacity-50"
-          >
-            {deleting ? "Deleting..." : "Delete this post"}
-          </button>
-        </div>
+        {isAuthor && (
+          <div className="pt-4 border-t border-neutral-800">
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="w-full px-4 py-2.5 bg-neutral-900 hover:bg-red-900 border border-neutral-800 hover:border-red-800 rounded-lg text-sm text-neutral-500 hover:text-red-200 transition disabled:opacity-50"
+            >
+              {deleting ? "Deleting..." : "Delete this post"}
+            </button>
+          </div>
+        )}
       </form>
     </div>
   );

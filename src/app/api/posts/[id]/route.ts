@@ -10,11 +10,13 @@ import { NextRequest } from "next/server";
 // non-R2 URLs (YouTube, legacy /uploads).
 function r2MediaFromBlocks(blocks: Block[]): { url: string; key: string }[] {
   const out: { url: string; key: string }[] = [];
+  const push = (url: string) => {
+    const key = r2KeyFromUrl(url);
+    if (key) out.push({ url, key });
+  };
   for (const b of blocks) {
-    if (b.type === "video" || b.type === "image") {
-      const key = r2KeyFromUrl(b.url);
-      if (key) out.push({ url: b.url, key });
-    }
+    if (b.type === "video" || b.type === "image") push(b.url);
+    else if (b.type === "carousel") for (const it of b.items) push(it.url);
   }
   return out;
 }
@@ -85,9 +87,9 @@ export async function PATCH(
     return Response.json({ error: "Post not found" }, { status: 404 });
   }
 
-  // Only the author can edit their own post.
-  if (existing.authorId !== session.user.id) {
-    return Response.json({ error: "Only the author can edit this post" }, { status: 403 });
+  // Any member of the post's team can edit it (add videos/text, reorder, etc.).
+  if (!existing.teamId || !(await isTeamMember(session.user.id, existing.teamId))) {
+    return Response.json({ error: "Not a member of this team" }, { status: 403 });
   }
 
   const { title, blocks, tags, groupId } = await request.json();

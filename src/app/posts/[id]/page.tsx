@@ -115,7 +115,9 @@ export default function PostPage() {
           ← Back
         </Link>
         <div className="flex gap-2">
-          {session?.user?.id === post.authorId && (
+          {/* Any team member (i.e. anyone who can view this post) can edit it to
+              add videos/text — not just the original author. */}
+          {session && (
             <Link
               href={`/posts/${post.id}/edit`}
               aria-label="Edit"
