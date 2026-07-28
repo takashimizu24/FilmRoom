@@ -11,6 +11,14 @@ import TagList from "@/components/TagList";
 import { useSearch } from "@/components/SearchContext";
 import { hexAlpha } from "@/lib/color";
 
+// `text-box-trim` isn't part of the standard CSSProperties type yet, and the CSS
+// build pipeline (Lightning CSS) drops it from stylesheets, so it's declared here
+// as an inline style where it survives untouched.
+const titleTrimStyle = {
+  textBoxTrim: "trim-start",
+  textBoxEdge: "cap alphabetic",
+} as CSSProperties;
+
 interface Tag {
   name: string;
   count: number;
@@ -342,18 +350,27 @@ export default function HomePage() {
               <Link
                 key={post.id}
                 href={`/posts/${post.id}`}
-                style={
-                  post.group?.color
-                    ? ({ "--group-color": hexAlpha(post.group.color, 0.9) } as CSSProperties)
-                    : undefined
-                }
+                style={{
+                  // Darker, blacker card surface than the shared `.glass` default.
+                  backgroundColor: "rgba(10, 10, 12, 0.72)",
+                  ...(post.group?.color
+                    ? { "--group-color": hexAlpha(post.group.color, 0.9) }
+                    : {}),
+                } as CSSProperties}
                 className={`glass relative block rounded-xl p-4 hover:border-white/20 transition ${
                   post.group?.color ? "group-border" : ""
                 }`}
               >
                 <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-1.5">
                   {post.group && <span className="mt-0.5 shrink-0"><GroupBadge group={post.group} /></span>}
-                  <h2 className="text-base font-semibold text-neutral-100 break-words min-w-0">
+                  <h2
+                    className="text-base font-semibold text-neutral-100 break-words min-w-0"
+                    // Trim the title's cap-height leading so the visible space above
+                    // the text equals the 16px padding on the sides and bottom.
+                    // Applied inline because the CSS build pipeline drops
+                    // `text-box-trim` from stylesheets.
+                    style={titleTrimStyle}
+                  >
                     {post.title}
                   </h2>
                 </div>
