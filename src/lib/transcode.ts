@@ -89,6 +89,10 @@ export async function convertMovToMp4(
       "ffmpeg",
       [
         "-y",
+        // Single-threaded decode + encode keeps memory low enough for small
+        // containers — multi-threaded 4K HEVC (e.g. Dolby Vision) decode
+        // otherwise duplicates frame buffers per thread and gets OOM-killed.
+        "-threads", "1",
         "-i", input,
         "-c:v", "libx264",
         "-preset", "veryfast",
@@ -97,6 +101,7 @@ export async function convertMovToMp4(
         "-vf", "scale='min(1920,iw)':'min(1920,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2",
         "-c:a", "aac",
         "-b:a", "128k",
+        "-threads", "1",
         "-movflags", "+faststart",
         output,
       ],
