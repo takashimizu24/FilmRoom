@@ -1,7 +1,8 @@
 FROM node:22-slim AS base
 
-# openssl for Prisma, sqlite3 CLI for first-boot schema init
-RUN apt-get update && apt-get install -y openssl sqlite3 && rm -rf /var/lib/apt/lists/*
+# openssl for Prisma, sqlite3 CLI for first-boot schema init,
+# ffmpeg to transcode iPhone HEVC/.mov videos to H.264 MP4 (see src/lib/transcode.ts)
+RUN apt-get update && apt-get install -y openssl sqlite3 ffmpeg && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
