@@ -103,48 +103,11 @@ export default function HomePage() {
   const [teamCount, setTeamCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [noTeam, setNoTeam] = useState(false);
-  const [teamId, setTeamId] = useState<string | null>(null);
-  const [ytUrl, setYtUrl] = useState("");
-  const [addingGame, setAddingGame] = useState(false);
-  const [addGameError, setAddGameError] = useState<string | null>(null);
 
   function toggleTag(name: string) {
     setActiveTags((prev) =>
       prev.includes(name) ? prev.filter((t) => t !== name) : [...prev, name]
     );
-  }
-
-  // Quick-add a full game: paste a YouTube link → a #fullgame-tagged post whose
-  // title is pulled from YouTube. Refreshes the board (and tag pills) on success.
-  async function handleAddFullgame(e: React.FormEvent) {
-    e.preventDefault();
-    const url = ytUrl.trim();
-    if (!url || !teamId || addingGame) return;
-    setAddingGame(true);
-    setAddGameError(null);
-    try {
-      const res = await fetch("/api/fullgame", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, teamId }),
-      });
-      if (!res.ok) {
-        const { error } = await res.json().catch(() => ({ error: null }));
-        setAddGameError(error || "追加できませんでした。もう一度お試しください。");
-        return;
-      }
-      setYtUrl("");
-      const [postsRes, tagsRes] = await Promise.all([
-        fetch(`/api/posts?teamId=${teamId}`),
-        fetch(`/api/tags?teamId=${teamId}`),
-      ]);
-      setPosts(await postsRes.json());
-      setTags(await tagsRes.json());
-    } catch {
-      setAddGameError("追加できませんでした。通信環境をご確認ください。");
-    } finally {
-      setAddingGame(false);
-    }
   }
 
   useEffect(() => {
@@ -163,7 +126,6 @@ export default function HomePage() {
       const activeTeam = teamsData.find((t: { id: string }) => t.id === teamId) ?? teamsData[0];
       setActiveTeamName(activeTeam?.name ?? null);
       setTeamCount(teamsData.length);
-      setTeamId(teamId);
 
       const [postsRes, tagsRes, groupsRes] = await Promise.all([
         fetch(`/api/posts?teamId=${teamId}`),
@@ -310,30 +272,6 @@ export default function HomePage() {
             })}
           </div>
         )}
-
-        {/* Quick-add a full game: paste a YouTube link → a #fullgame-tagged post. */}
-        <form onSubmit={handleAddFullgame} className="flex gap-2">
-          <input
-            type="url"
-            inputMode="url"
-            value={ytUrl}
-            onChange={(e) => {
-              setYtUrl(e.target.value);
-              if (addGameError) setAddGameError(null);
-            }}
-            placeholder="YouTubeのURLを貼ってフルゲームを追加"
-            aria-label="Add a full game from a YouTube link"
-            className="flex-1 min-w-0 h-9 px-3 bg-neutral-800/70 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
-          />
-          <button
-            type="submit"
-            disabled={addingGame || !ytUrl.trim()}
-            className="shrink-0 h-9 px-4 rounded-lg text-sm bg-neutral-700 text-neutral-100 hover:bg-neutral-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {addingGame ? "追加中…" : "追加"}
-          </button>
-        </form>
-        {addGameError && <p className="text-red-400 text-xs">{addGameError}</p>}
 
       </div>
 
