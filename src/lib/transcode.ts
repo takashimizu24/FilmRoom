@@ -1,4 +1,5 @@
 import { spawn } from "child_process";
+import { stat } from "fs/promises";
 
 /**
  * iPhone videos are HEVC (H.265) in a QuickTime (.mov) container. Safari plays
@@ -83,24 +84,30 @@ export async function convertMovToMp4(
       ["-y", "-i", input, "-c", "copy", "-movflags", "+faststart", output],
       timeoutMs
     );
-    return;
+  } else {
+    await run(
+      "ffmpeg",
+      [
+        "-y",
+        "-i", input,
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-crf", "26",
+        // Fit within 1920x1920 (only downscales), keeping aspect and even dimensions.
+        "-vf", "scale='min(1920,iw)':'min(1920,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        "-movflags", "+faststart",
+        output,
+      ],
+      timeoutMs
+    );
   }
 
-  await run(
-    "ffmpeg",
-    [
-      "-y",
-      "-i", input,
-      "-c:v", "libx264",
-      "-preset", "veryfast",
-      "-crf", "26",
-      // Fit within 1920x1920 (only downscales), keeping aspect and even dimensions.
-      "-vf", "scale='min(1920,iw)':'min(1920,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2",
-      "-c:a", "aac",
-      "-b:a", "128k",
-      "-movflags", "+faststart",
-      output,
-    ],
-    timeoutMs
-  );
+  // Sanity check: a successful exit with an empty/tiny output means the encode
+  // effectively failed. Treat it as an error so callers keep the original file.
+  const { size } = await stat(output);
+  if (size < 1024) {
+    throw new Error(`transcode produced a ${size}-byte file`);
+  }
 }
