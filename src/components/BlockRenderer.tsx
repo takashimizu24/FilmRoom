@@ -7,6 +7,7 @@ import MediaCarousel from "./MediaCarousel";
 import TagList from "./TagList";
 import BlockComments from "./BlockComments";
 import { blockAnchorId } from "@/lib/blocks";
+import { linkify } from "@/lib/linkify";
 
 function TextBlock({ content }: { content: string }) {
   const [translated, setTranslated] = useState<string | null>(null);
@@ -42,12 +43,12 @@ function TextBlock({ content }: { content: string }) {
     <div>
       {content.split("\n").map((line, j) => (
         <p key={j} className="mb-2 text-neutral-300 leading-relaxed">
-          {line || " "}
+          {line ? linkify(line) : " "}
         </p>
       ))}
       {translated && (
         <p className="text-neutral-500 text-sm mb-2 italic leading-relaxed whitespace-pre-line">
-          {translated}
+          {linkify(translated)}
         </p>
       )}
       {translateError && (

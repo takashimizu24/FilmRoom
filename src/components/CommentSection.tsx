@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useComments, type Message } from "./CommentsContext";
+import { linkify } from "@/lib/linkify";
 
 // A threaded comment list + composer scoped to one target: a specific block
 // (`blockRef` = index) or the whole post (`blockRef` = null). Replies are kept
@@ -103,11 +104,11 @@ export default function CommentSection({
             </span>
           </div>
           <p className="text-neutral-300 text-sm mt-0.5 break-words whitespace-pre-line">
-            {msg.content}
+            {linkify(msg.content)}
           </p>
           {translations[msg.id] && (
             <p className="text-neutral-500 text-sm mt-1 break-words italic whitespace-pre-line">
-              {translations[msg.id]}
+              {linkify(translations[msg.id])}
             </p>
           )}
           {translateError === msg.id && (
