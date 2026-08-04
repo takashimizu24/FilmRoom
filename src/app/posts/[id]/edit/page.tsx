@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import BlockEditor from "@/components/BlockEditor";
 import TagAutocomplete from "@/components/TagAutocomplete";
+import UnsavedChangesGuard from "@/components/UnsavedChangesGuard";
 import type { MediaItem } from "@/components/MediaPicker";
 import type { Block } from "@/lib/types";
 
@@ -33,6 +34,8 @@ export default function EditPostPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  // Snapshot of the loaded post, to detect unsaved edits.
+  const initialSnapshot = useRef<string>("");
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -48,10 +51,17 @@ export default function EditPostPage() {
         // author sees the "delete whole post" action.
         setAllowed(true);
         setIsAuthor(!!data.authorId && data.authorId === session?.user?.id);
+        const tagNames = (data.tags ?? []).map((t: { name: string }) => t.name);
         setTitle(data.title);
         setBlocks(data.blocks);
-        setTags((data.tags ?? []).map((t: { name: string }) => t.name));
+        setTags(tagNames);
         setGroupId(data.groupId ?? "");
+        initialSnapshot.current = JSON.stringify({
+          title: data.title,
+          blocks: data.blocks,
+          tags: tagNames,
+          groupId: data.groupId ?? "",
+        });
         if (data.teamId) {
           fetch(`/api/groups?teamId=${data.teamId}`)
             .then((r) => (r.ok ? r.json() : []))
@@ -71,8 +81,16 @@ export default function EditPostPage() {
       });
   }, [id, status, session?.user?.id]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  const dirty = useMemo(() => {
+    if (!initialSnapshot.current) return false;
+    return (
+      JSON.stringify({ title, blocks, tags, groupId: groupId || "" }) !== initialSnapshot.current
+    );
+  }, [title, blocks, tags, groupId]);
+
+  // Persist the post. Returns whether it saved (used by both the Save button and
+  // the "save your changes?" leave guard); it does NOT navigate on its own.
+  async function savePost(): Promise<boolean> {
     setError("");
 
     const nonEmptyBlocks = blocks.filter((b) => {
@@ -83,7 +101,7 @@ export default function EditPostPage() {
 
     if (nonEmptyBlocks.length === 0) {
       setError("Please add some content");
-      return;
+      return false;
     }
 
     setSubmitting(true);
@@ -95,13 +113,22 @@ export default function EditPostPage() {
     setSubmitting(false);
 
     if (!res.ok) {
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       setError(data.error || "Failed to save changes");
-      return;
+      return false;
     }
 
-    router.push(`/posts/${id}`);
-    router.refresh();
+    // Mark clean so leaving now doesn't re-prompt.
+    initialSnapshot.current = JSON.stringify({ title, blocks: nonEmptyBlocks, tags, groupId: groupId || "" });
+    return true;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (await savePost()) {
+      router.push(`/posts/${id}`);
+      router.refresh();
+    }
   }
 
   async function handleDelete() {
@@ -141,6 +168,7 @@ export default function EditPostPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
+      <UnsavedChangesGuard dirty={dirty} onSave={savePost} />
       <h1 className="text-2xl font-bold text-neutral-100 mb-6">Edit Post</h1>
       {error && (
         <div className="bg-red-900/30 text-red-400 p-3 rounded-lg mb-4 text-sm">{error}</div>
@@ -230,6 +258,7 @@ export default function EditPostPage() {
           </button>
           <Link
             href={`/posts/${id}`}
+            data-allow-unsaved
             className="px-6 py-3 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-neutral-300 transition text-center"
           >
             Cancel
