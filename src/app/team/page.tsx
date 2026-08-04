@@ -31,6 +31,9 @@ export default function TeamPage() {
   const [nameInput, setNameInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [editMembers, setEditMembers] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [confirmName, setConfirmName] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -76,6 +79,21 @@ export default function TeamPage() {
     } else {
       const data = await res.json().catch(() => ({}));
       alert(data.error || "Couldn't remove that member.");
+    }
+  }
+
+  async function handleDeleteTeam() {
+    if (!team || confirmName.trim() !== team.name) return;
+    setDeleting(true);
+    const res = await fetch(`/api/teams/${team.id}`, { method: "DELETE" });
+    if (res.ok) {
+      // Drop the active-team cookie so the home page re-selects another team.
+      document.cookie = "activeTeamId=; path=/; max-age=0";
+      window.location.href = "/";
+    } else {
+      setDeleting(false);
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Couldn't delete the team.");
     }
   }
 
@@ -232,6 +250,56 @@ export default function TeamPage() {
 
       <GroupManager teamId={team.id} />
       <TagManager teamId={team.id} />
+
+      {iAmAdmin && (
+        <div className="mt-6 rounded-xl border border-red-500/30 bg-red-500/5 p-4">
+          <h2 className="text-sm font-semibold text-red-300">Danger zone</h2>
+          <p className="text-xs text-neutral-400 mt-1 mb-3">
+            チームを削除すると、投稿・動画・コメント・タグ・グループがすべて完全に削除されます。元に戻せません。
+          </p>
+          {!showDelete ? (
+            <button
+              onClick={() => setShowDelete(true)}
+              className="text-xs font-medium text-red-400 hover:text-red-300 border border-red-400/40 hover:border-red-300/70 rounded-md px-3 py-1.5 transition"
+            >
+              Delete team
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <label className="block text-xs text-neutral-400">
+                確認のため、チーム名{" "}
+                <span className="text-neutral-200 font-medium">{team.name}</span>{" "}
+                を入力してください：
+              </label>
+              <input
+                type="text"
+                value={confirmName}
+                onChange={(e) => setConfirmName(e.target.value)}
+                placeholder={team.name}
+                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-600 focus:ring-2 focus:ring-red-500/50 focus:border-transparent"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDeleteTeam}
+                  disabled={deleting || confirmName.trim() !== team.name}
+                  className="text-xs font-medium text-white bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-md px-3 py-1.5 transition"
+                >
+                  {deleting ? "削除中…" : "完全に削除"}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDelete(false);
+                    setConfirmName("");
+                  }}
+                  className="text-xs text-neutral-400 hover:text-neutral-200 px-3 py-1.5"
+                >
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-6 text-center">
         <Link href="/teams/new" className="text-sm text-neutral-500 hover:text-neutral-300 transition">

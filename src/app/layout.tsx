@@ -4,6 +4,7 @@ import "./globals.css";
 import SessionProvider from "@/components/SessionProvider";
 import { SearchProvider } from "@/components/SearchContext";
 import Header from "@/components/Header";
+import BottomNav from "@/components/BottomNav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,7 +36,9 @@ export default function RootLayout({
         <SessionProvider>
           <SearchProvider>
             <Header />
-            <main className="flex-1">{children}</main>
+            {/* Extra bottom padding on phones so the fixed BottomNav never covers content. */}
+            <main className="flex-1 pb-20 sm:pb-0">{children}</main>
+            <BottomNav />
           </SearchProvider>
         </SessionProvider>
       </body>
