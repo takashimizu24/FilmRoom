@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { getNotifSeen } from "./notifications";
+import { useUnreadNotifications } from "./useUnreadNotifications";
 
 const HomeIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /></svg>
@@ -19,60 +18,12 @@ const TeamIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
 );
 
-type ActivityItem = { createdAt: string; actorId: string };
-
 // Bottom tab bar for phones — a familiar app-style nav. Hidden on ≥sm where the
 // header already carries navigation. The お知らせ tab shows an unread dot.
 export default function BottomNav() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const pathname = usePathname();
-  const [teamId, setTeamId] = useState<string | null>(null);
-  const [unread, setUnread] = useState(0);
-
-  // Resolve the active team once logged in.
-  useEffect(() => {
-    if (status !== "authenticated") return;
-    fetch("/api/teams")
-      .then((r) => r.json())
-      .then((teams: { id: string }[]) => {
-        if (!teams.length) return;
-        const activeId = document.cookie.match(/activeTeamId=([^;]+)/)?.[1];
-        setTeamId(teams.some((t) => t.id === activeId) ? activeId! : teams[0].id);
-      })
-      .catch(() => {});
-  }, [status, pathname]);
-
-  // Poll activity and count items newer than "seen" (excluding my own actions).
-  useEffect(() => {
-    if (!teamId || !session?.user?.id) return;
-    let stop = false;
-    const recompute = (items: ActivityItem[]) => {
-      const seen = getNotifSeen(teamId);
-      setUnread(
-        items.filter((i) => new Date(i.createdAt).getTime() > seen && i.actorId !== session.user!.id).length
-      );
-    };
-    let latest: ActivityItem[] = [];
-    async function tick() {
-      try {
-        const items = await fetch(`/api/activity?teamId=${teamId}`).then((r) => (r.ok ? r.json() : []));
-        if (stop) return;
-        latest = Array.isArray(items) ? items : [];
-        recompute(latest);
-      } catch {
-        /* ignore */
-      }
-    }
-    tick();
-    const interval = setInterval(tick, 45000);
-    const onSeen = () => recompute(latest);
-    window.addEventListener("filmroom:notifSeen", onSeen);
-    return () => {
-      stop = true;
-      clearInterval(interval);
-      window.removeEventListener("filmroom:notifSeen", onSeen);
-    };
-  }, [teamId, session?.user?.id]);
+  const unread = useUnreadNotifications();
 
   // Only for logged-in app screens; keep it out of the auth pages.
   if (status !== "authenticated") return null;
