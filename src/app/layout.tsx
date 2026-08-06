@@ -36,8 +36,8 @@ export default function RootLayout({
         <SessionProvider>
           <SearchProvider>
             <Header />
-            {/* Extra bottom padding on phones so the fixed BottomNav never covers content. */}
-            <main className="flex-1 pb-20 sm:pb-0">{children}</main>
+            {/* Extra bottom padding on phones so the floating BottomNav never covers content. */}
+            <main className="flex-1 pb-28 sm:pb-0">{children}</main>
             <BottomNav />
           </SearchProvider>
         </SessionProvider>

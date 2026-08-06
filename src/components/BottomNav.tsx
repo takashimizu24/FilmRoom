@@ -86,13 +86,16 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="sm:hidden fixed bottom-0 inset-x-0 z-50 glass-strong border-t border-white/10 pb-[env(safe-area-inset-bottom)]">
+    <nav
+      className="sm:hidden fixed inset-x-3 z-50 rounded-2xl glass-strong border border-white/15 shadow-xl shadow-black/40 overflow-hidden"
+      style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+    >
       <ul className="flex items-stretch">
         {tabs.map((t) => (
           <li key={t.href} className="flex-1">
             <Link
               href={t.href}
-              className={`relative flex flex-col items-center justify-center gap-0.5 py-2 transition ${
+              className={`relative flex flex-col items-center justify-center gap-0.5 py-2.5 transition ${
                 t.active ? "text-sky-300" : "text-neutral-400 hover:text-neutral-200"
               }`}
             >
