@@ -38,8 +38,13 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="sm:hidden fixed inset-x-3 z-50 rounded-2xl glass-strong border border-white/15 shadow-xl shadow-black/40 overflow-hidden"
-      style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+      className="sm:hidden fixed inset-x-3 z-50 rounded-[28px] glass-strong border border-white/15 shadow-xl shadow-black/40 overflow-hidden"
+      style={{
+        bottom: "calc(0.75rem + env(safe-area-inset-bottom))",
+        // More see-through than the default glass-strong surface (0.78); the
+        // backdrop-blur keeps the labels readable.
+        backgroundColor: "rgba(17, 17, 20, 0.5)",
+      }}
     >
       <ul className="flex items-stretch">
         {tabs.map((t) => (
