@@ -38,7 +38,7 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="sm:hidden fixed inset-x-3 z-50 rounded-[28px] glass-strong border border-white/15 shadow-xl shadow-black/40 overflow-hidden"
+      className="sm:hidden fixed inset-x-4 mx-auto max-w-xs z-50 rounded-[28px] glass-strong border border-white/15 shadow-xl shadow-black/40 overflow-hidden"
       style={{
         bottom: "calc(0.75rem + env(safe-area-inset-bottom))",
         // More see-through than the default glass-strong surface (0.78); the
