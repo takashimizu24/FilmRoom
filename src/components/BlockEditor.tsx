@@ -132,6 +132,13 @@ export default function BlockEditor({
 }) {
   const [uploading, setUploading] = useState<number | null>(null);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null); // "Uploading 2 of 5…"
+  // Uploads are slow, and the user keeps editing (typing in a text block) while
+  // one runs. Handlers that resume after an `await` must not rebuild the list
+  // from the `blocks` prop they captured before the upload — that snapshot is
+  // stale and would wipe everything typed meanwhile. Always read the latest
+  // blocks through this mirror instead.
+  const blocksRef = useRef(blocks);
+  blocksRef.current = blocks;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
@@ -157,7 +164,7 @@ export default function BlockEditor({
   }
 
   function updateBlock(index: number, updated: Block) {
-    const next = [...blocks];
+    const next = [...blocksRef.current];
     next[index] = updated;
     onChange(next);
   }
@@ -286,8 +293,11 @@ export default function BlockEditor({
         uploaded.length === 1
           ? { type, url: uploaded[0].url, tags: [] }
           : { type: "carousel", items: uploaded, tags: [] };
-      const next = [...blocks];
-      next.splice(insertAt, 0, newBlock);
+      // Insert into the CURRENT blocks (not the pre-upload snapshot), and clamp
+      // the position in case blocks were added/removed during the upload.
+      const current = blocksRef.current;
+      const next = [...current];
+      next.splice(Math.min(insertAt, current.length), 0, newBlock);
       onChange(next);
     }
 
@@ -399,8 +409,9 @@ export default function BlockEditor({
     setUploading(index);
     const url = await uploadFile(file);
     if (url) {
-      const block = blocks[index];
-      if (block.type === "video" || block.type === "image") {
+      // Re-read after the upload — the list may have changed while it ran.
+      const block = blocksRef.current[index];
+      if (block && (block.type === "video" || block.type === "image")) {
         updateBlock(index, { ...block, url });
       }
     }

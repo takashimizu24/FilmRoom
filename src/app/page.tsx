@@ -61,6 +61,51 @@ function isMedia(block: Block): boolean {
   );
 }
 
+// A post row on the board. Shared by the default list and the "ポスト" section
+// of the filtered/search results.
+function PostCard({ post, colorMap }: { post: Post; colorMap: Map<string, string | null> }) {
+  const { videos, images } = getMediaCounts(post.blocks);
+  return (
+    <Link
+      href={`/posts/${post.id}`}
+      style={{
+        // Darker, blacker card surface than the shared `.glass` default.
+        backgroundColor: "rgba(10, 10, 12, 0.72)",
+        ...(post.group?.color ? { "--group-color": hexAlpha(post.group.color, 0.9) } : {}),
+      } as CSSProperties}
+      className={`glass relative block rounded-xl p-4 hover:border-white/20 transition ${
+        post.group?.color ? "group-border" : ""
+      }`}
+    >
+      <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-1.5">
+        {post.group && (
+          <span className="mt-0.5 shrink-0">
+            <GroupBadge group={post.group} />
+          </span>
+        )}
+        <h2 className="text-base font-semibold text-neutral-100 break-words min-w-0">{post.title}</h2>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-500">
+        <span>{post.author.name}</span>
+        <span>·</span>
+        <time>{new Date(post.createdAt).toLocaleDateString("en-US")}</time>
+        {videos > 0 && <span>🎬 {videos}</span>}
+        {images > 0 && <span>🖼 {images}</span>}
+        {post._count.messages > 0 && <span>💬 {post._count.messages}</span>}
+        {post.tags.length > 0 && (
+          <TagList
+            tags={post.tags.map((t) => ({
+              name: t.name,
+              color: t.color ?? colorMap.get(t.name) ?? null,
+            }))}
+            max={2}
+          />
+        )}
+      </div>
+    </Link>
+  );
+}
+
 function MediaTagList({ tags, colorMap }: { tags?: string[]; colorMap: Map<string, string | null> }) {
   if (!tags || tags.length === 0) return null;
   return (
@@ -195,43 +240,59 @@ export default function HomePage() {
   // Group filter applies first, forming the base set for both views.
   const basePosts = activeGroupId ? posts.filter((p) => p.groupId === activeGroupId) : posts;
 
-  // When one or more tags are selected, we show a flat list of the tagged media
-  // (clips), not posts. A media block matches a tag if it carries the tag directly
-  // OR its parent post has the tag. Match mode: "and" (all) narrows, "or" (any) combines.
-  const mediaItems =
-    activeTags.length > 0
-      ? basePosts
-          .flatMap((post) => {
-            const postTagNames = post.tags.map((t) => t.name);
-            const matchesTag = (block: Block, tag: string) =>
-              postTagNames.includes(tag) ||
-              ("tags" in block ? (block.tags ?? []).includes(tag) : false);
-            return post.blocks
-              .map((block, idx) => ({ block, key: `${post.id}-${idx}`, post }))
-              .filter(
-                ({ block }) =>
-                  isMedia(block) &&
-                  (matchMode === "and"
-                    ? activeTags.every((tag) => matchesTag(block, tag))
-                    : activeTags.some((tag) => matchesTag(block, tag)))
-              );
-          })
-          .filter(({ post }) => !searchTerm || post.title.toLowerCase().includes(searchTerm))
-      : [];
-
   const tagLabel = activeTags.map((t) => `#${t}`).join(matchMode === "and" ? " + " : " or ");
 
-  const filteredPosts = basePosts.filter(
-    (post) => !searchTerm || post.title.toLowerCase().includes(searchTerm)
-  );
+  // Filtering by tag or searching by title shows results in two separate
+  // sections: the individual clips (threads) that match, then the posts that
+  // match as a whole. Threads come first.
+  const filtering = activeTags.length > 0 || !!searchTerm;
+
+  const matchesTags = (names: string[]) =>
+    matchMode === "and"
+      ? activeTags.every((tag) => names.includes(tag))
+      : activeTags.some((tag) => names.includes(tag));
+
+  // Threads: media blocks matched by their OWN tags (a post-level tag surfaces
+  // the post in the section below instead of flooding this list with its clips).
+  const mediaItems = filtering
+    ? basePosts.flatMap((post) =>
+        post.blocks
+          .map((block, idx) => ({ block, key: `${post.id}-${idx}`, post }))
+          .filter(({ block }) => {
+            if (!isMedia(block)) return false;
+            const blockTags = "tags" in block ? block.tags ?? [] : [];
+            if (activeTags.length > 0 && !matchesTags(blockTags)) return false;
+            if (searchTerm) {
+              const caption = "caption" in block ? block.caption ?? "" : "";
+              const haystack = `${caption} ${post.title}`.toLowerCase();
+              if (!haystack.includes(searchTerm)) return false;
+            }
+            return true;
+          })
+      )
+    : [];
+
+  // Posts: matched by their own (post-level) tags and/or title.
+  const matchedPosts = basePosts.filter((post) => {
+    if (activeTags.length > 0 && !matchesTags(post.tags.map((t) => t.name))) return false;
+    if (searchTerm && !post.title.toLowerCase().includes(searchTerm)) return false;
+    return true;
+  });
+
+  // Unfiltered board.
+  const filteredPosts = matchedPosts;
 
   return (
     <div className="max-w-5xl mx-auto px-3 sm:px-4 py-8">
       <div className="flex items-baseline gap-2 mb-6 min-w-0">
         <h1 className="text-2xl font-bold text-neutral-100 shrink-0">
-          {activeTags.length > 0 ? `Clips tagged ${tagLabel}` : "Posts"}
+          {activeTags.length > 0
+            ? `検索結果 ${tagLabel}`
+            : searchTerm
+              ? "検索結果"
+              : "Posts"}
         </h1>
-        {activeTags.length === 0 && teamCount > 1 && activeTeamName && (
+        {!filtering && teamCount > 1 && activeTeamName && (
           <span className="text-sm text-neutral-500 truncate min-w-0" title={activeTeamName}>
             {activeTeamName}
           </span>
@@ -275,39 +336,65 @@ export default function HomePage() {
 
       </div>
 
-      {activeTags.length > 0 ? (
-        // Tag view: a list of the individual tagged clips/media.
-        mediaItems.length === 0 ? (
+      {filtering ? (
+        // Filtered / search results: threads (clips) first, then whole posts.
+        mediaItems.length === 0 && matchedPosts.length === 0 ? (
           <div className="text-center py-12 text-neutral-500">
-            <p className="mb-2">No clips tagged {tagLabel}</p>
-            <button
-              onClick={() => setActiveTags([])}
-              className="text-neutral-400 hover:text-neutral-200 text-sm transition"
-            >
-              Back to all posts
-            </button>
+            <p className="mb-2">
+              {activeTags.length > 0 ? `${tagLabel} に一致する結果はありません` : "一致する結果はありません"}
+            </p>
+            {activeTags.length > 0 && (
+              <button
+                onClick={() => setActiveTags([])}
+                className="text-neutral-400 hover:text-neutral-200 text-sm transition"
+              >
+                Back to all posts
+              </button>
+            )}
           </div>
         ) : (
-          <div className="space-y-6">
-            {mediaItems.map(({ block, key, post }) => (
-              <div key={key} className="glass rounded-xl p-4">
-                <MediaBlock block={block} />
-                <MediaTagList tags={"tags" in block ? block.tags : undefined} colorMap={colorMap} />
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-500 mt-3">
-                  {post.group && <GroupBadge group={post.group} />}
-                  <Link
-                    href={`/posts/${post.id}`}
-                    className="text-neutral-400 hover:text-neutral-200 transition truncate min-w-0 max-w-full"
-                  >
-                    {post.title}
-                  </Link>
-                  <span className="whitespace-nowrap">· {post.author.name}</span>
-                  <time className="whitespace-nowrap">
-                    · {new Date(post.createdAt).toLocaleDateString("en-US")}
-                  </time>
+          <div className="space-y-8">
+            {mediaItems.length > 0 && (
+              <section>
+                <h2 className="text-sm font-semibold text-neutral-400 mb-3">
+                  スレッド <span className="text-neutral-600">({mediaItems.length})</span>
+                </h2>
+                <div className="space-y-6">
+                  {mediaItems.map(({ block, key, post }) => (
+                    <div key={key} className="glass rounded-xl p-4">
+                      <MediaBlock block={block} />
+                      <MediaTagList tags={"tags" in block ? block.tags : undefined} colorMap={colorMap} />
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-500 mt-3">
+                        {post.group && <GroupBadge group={post.group} />}
+                        <Link
+                          href={`/posts/${post.id}`}
+                          className="text-neutral-400 hover:text-neutral-200 transition truncate min-w-0 max-w-full"
+                        >
+                          {post.title}
+                        </Link>
+                        <span className="whitespace-nowrap">· {post.author.name}</span>
+                        <time className="whitespace-nowrap">
+                          · {new Date(post.createdAt).toLocaleDateString("en-US")}
+                        </time>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
+              </section>
+            )}
+
+            {matchedPosts.length > 0 && (
+              <section>
+                <h2 className="text-sm font-semibold text-neutral-400 mb-3">
+                  ポスト <span className="text-neutral-600">({matchedPosts.length})</span>
+                </h2>
+                <div className="space-y-4">
+                  {matchedPosts.map((post) => (
+                    <PostCard key={post.id} post={post} colorMap={colorMap} />
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )
       ) : filteredPosts.length === 0 ? (
@@ -326,49 +413,9 @@ export default function HomePage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredPosts.map((post) => {
-            const { videos, images } = getMediaCounts(post.blocks);
-            return (
-              <Link
-                key={post.id}
-                href={`/posts/${post.id}`}
-                style={{
-                  // Darker, blacker card surface than the shared `.glass` default.
-                  backgroundColor: "rgba(10, 10, 12, 0.72)",
-                  ...(post.group?.color
-                    ? { "--group-color": hexAlpha(post.group.color, 0.9) }
-                    : {}),
-                } as CSSProperties}
-                className={`glass relative block rounded-xl p-4 hover:border-white/20 transition ${
-                  post.group?.color ? "group-border" : ""
-                }`}
-              >
-                <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-1.5">
-                  {post.group && <span className="mt-0.5 shrink-0"><GroupBadge group={post.group} /></span>}
-                  <h2 className="text-base font-semibold text-neutral-100 break-words min-w-0">
-                    {post.title}
-                  </h2>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-500">
-                  <span>{post.author.name}</span>
-                  <span>·</span>
-                  <time>{new Date(post.createdAt).toLocaleDateString("en-US")}</time>
-                  {videos > 0 && <span>🎬 {videos}</span>}
-                  {images > 0 && <span>🖼 {images}</span>}
-                  {post._count.messages > 0 && <span>💬 {post._count.messages}</span>}
-                  {post.tags.length > 0 && (
-                    <TagList
-                      tags={post.tags.map((t) => ({
-                        name: t.name,
-                        color: t.color ?? colorMap.get(t.name) ?? null,
-                      }))}
-                      max={2}
-                    />
-                  )}
-                </div>
-              </Link>
-            );
-          })}
+          {filteredPosts.map((post) => (
+            <PostCard key={post.id} post={post} colorMap={colorMap} />
+          ))}
         </div>
       )}
 

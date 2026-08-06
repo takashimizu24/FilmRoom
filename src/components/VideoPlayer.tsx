@@ -349,12 +349,30 @@ export function UploadedVideo({ url }: { url: string }) {
           onContextMenu={(e) => e.preventDefault()}
         />
 
-        {/* Centre indicator when paused (or held-paused). */}
+        {/* Centre play control when paused. It's a real button (not just an
+            indicator) so tapping the big circle always starts playback, rather
+            than relying on the gesture layer underneath. While held-paused it
+            stays a passive indicator — releasing the press resumes. */}
         {!playing && (
           <div className="absolute inset-0 z-[15] flex items-center justify-center pointer-events-none">
-            <div className="h-16 w-16 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center text-white [&_svg]:h-8 [&_svg]:w-8">
-              {holdPaused ? <PauseIcon /> : <PlayIcon />}
-            </div>
+            {holdPaused ? (
+              <div className="h-16 w-16 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center text-white [&_svg]:h-8 [&_svg]:w-8">
+                <PauseIcon />
+              </div>
+            ) : (
+              <button
+                type="button"
+                aria-label="Play"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  videoRef.current?.play();
+                }}
+                className="pointer-events-auto h-16 w-16 rounded-full bg-black/45 hover:bg-black/60 backdrop-blur-sm flex items-center justify-center text-white transition [&_svg]:h-8 [&_svg]:w-8"
+              >
+                <PlayIcon />
+              </button>
+            )}
           </div>
         )}
 
