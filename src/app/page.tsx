@@ -143,16 +143,35 @@ export default function HomePage() {
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [matchMode, setMatchMode] = useState<"and" | "or">("and");
-  const { titleQuery } = useSearch();
+  const { titleQuery, setTitleQuery } = useSearch();
   const [activeTeamName, setActiveTeamName] = useState<string | null>(null);
   const [teamCount, setTeamCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [noTeam, setNoTeam] = useState(false);
 
+  // Tag filters can arrive via ?tag= (from the header search), so keep that
+  // param in step with the active tags — otherwise clearing a filter here would
+  // come straight back on reload.
+  function syncTagUrl(next: string[]) {
+    const url = new URL(window.location.href);
+    if (next.length) url.searchParams.set("tag", next.join(","));
+    else url.searchParams.delete("tag");
+    window.history.replaceState(null, "", url.pathname + url.search);
+  }
+
   function toggleTag(name: string) {
-    setActiveTags((prev) =>
-      prev.includes(name) ? prev.filter((t) => t !== name) : [...prev, name]
-    );
+    const next = activeTags.includes(name)
+      ? activeTags.filter((t) => t !== name)
+      : [...activeTags, name];
+    setActiveTags(next);
+    syncTagUrl(next);
+  }
+
+  // Drop every active filter (tags + title search) and go back to the board.
+  function clearFilters() {
+    setActiveTags([]);
+    setTitleQuery("");
+    syncTagUrl([]);
   }
 
   useEffect(() => {
@@ -299,6 +318,51 @@ export default function HomePage() {
         )}
       </div>
 
+      {/* Active filters — always visible while filtering, so a tag search can be
+          undone without hunting for the tag list at the bottom of the page. */}
+      {filtering && (
+        <div className="flex flex-wrap items-center gap-2 mb-6">
+          {activeTags.map((name) => (
+            <button
+              key={name}
+              onClick={() => toggleTag(name)}
+              aria-label={`#${name} の絞り込みを解除`}
+              style={{
+                backgroundColor: hexAlpha(colorMap.get(name), 0.16) ?? "rgba(255,255,255,0.06)",
+                borderColor: hexAlpha(colorMap.get(name), 0.4) ?? "rgba(255,255,255,0.12)",
+                color: colorMap.get(name) ?? "#d4d4d4",
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs border backdrop-blur-md transition hover:brightness-125"
+            >
+              #{name}
+              <span aria-hidden className="text-sm leading-none opacity-70">
+                ×
+              </span>
+            </button>
+          ))}
+
+          {searchTerm && (
+            <button
+              onClick={() => setTitleQuery("")}
+              aria-label="タイトル検索を解除"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs border border-white/12 bg-white/6 text-neutral-300 backdrop-blur-md transition hover:bg-white/10"
+            >
+              「{titleQuery.trim()}」
+              <span aria-hidden className="text-sm leading-none opacity-70">
+                ×
+              </span>
+            </button>
+          )}
+
+          <button
+            onClick={clearFilters}
+            className="px-3 py-1 rounded-full text-xs text-neutral-400 hover:text-neutral-100 transition"
+          >
+            絞り込みを解除
+          </button>
+        </div>
+      )}
+
       <div className="mb-6 space-y-3">
         {/* Group tabs — squared, folder-icon style so they read as categories (vs #tag pills) */}
         {groups.length > 0 && (
@@ -337,23 +401,34 @@ export default function HomePage() {
       </div>
 
       {filtering ? (
-        // Filtered / search results: threads (clips) first, then whole posts.
+        // Filtered / search results: whole posts first, then the matching clips.
         mediaItems.length === 0 && matchedPosts.length === 0 ? (
           <div className="text-center py-12 text-neutral-500">
             <p className="mb-2">
               {activeTags.length > 0 ? `${tagLabel} に一致する結果はありません` : "一致する結果はありません"}
             </p>
-            {activeTags.length > 0 && (
-              <button
-                onClick={() => setActiveTags([])}
-                className="text-neutral-400 hover:text-neutral-200 text-sm transition"
-              >
-                Back to all posts
-              </button>
-            )}
+            <button
+              onClick={clearFilters}
+              className="text-neutral-400 hover:text-neutral-200 text-sm transition"
+            >
+              絞り込みを解除
+            </button>
           </div>
         ) : (
           <div className="space-y-8">
+            {matchedPosts.length > 0 && (
+              <section>
+                <h2 className="text-sm font-semibold text-neutral-400 mb-3">
+                  ポスト <span className="text-neutral-600">({matchedPosts.length})</span>
+                </h2>
+                <div className="space-y-4">
+                  {matchedPosts.map((post) => (
+                    <PostCard key={post.id} post={post} colorMap={colorMap} />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {mediaItems.length > 0 && (
               <section>
                 <h2 className="text-sm font-semibold text-neutral-400 mb-3">
@@ -378,19 +453,6 @@ export default function HomePage() {
                         </time>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {matchedPosts.length > 0 && (
-              <section>
-                <h2 className="text-sm font-semibold text-neutral-400 mb-3">
-                  ポスト <span className="text-neutral-600">({matchedPosts.length})</span>
-                </h2>
-                <div className="space-y-4">
-                  {matchedPosts.map((post) => (
-                    <PostCard key={post.id} post={post} colorMap={colorMap} />
                   ))}
                 </div>
               </section>
@@ -424,7 +486,7 @@ export default function HomePage() {
         <div className="mt-8 pt-6 border-t border-white/10 space-y-3">
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => setActiveTags([])}
+              onClick={clearFilters}
               className={`px-3 py-1 rounded-full text-xs border backdrop-blur-md transition ${
                 activeTags.length === 0
                   ? "bg-white/15 border-white/25 text-neutral-100"
