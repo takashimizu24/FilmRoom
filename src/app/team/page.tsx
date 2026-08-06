@@ -21,6 +21,23 @@ function EditIcon() {
   );
 }
 
+function GearIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={`transition-transform ${open ? "rotate-180" : ""}`}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
 export default function TeamPage() {
   const { data: session, status } = useSession();
   const [team, setTeam] = useState<TeamDetail | null>(null);
@@ -31,6 +48,7 @@ export default function TeamPage() {
   const [nameInput, setNameInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [editMembers, setEditMembers] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [confirmName, setConfirmName] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -252,49 +270,78 @@ export default function TeamPage() {
       <TagManager teamId={team.id} />
 
       {iAmAdmin && (
-        <div className="mt-6 rounded-xl border border-red-500/30 bg-red-500/5 p-4">
-          <h2 className="text-sm font-semibold text-red-300">Danger zone</h2>
-          <p className="text-xs text-neutral-400 mt-1 mb-3">
-            チームを削除すると、投稿・動画・コメント・タグ・グループがすべて完全に削除されます。元に戻せません。
-          </p>
-          {!showDelete ? (
-            <button
-              onClick={() => setShowDelete(true)}
-              className="text-xs font-medium text-red-400 hover:text-red-300 border border-red-400/40 hover:border-red-300/70 rounded-md px-3 py-1.5 transition"
-            >
-              Delete team
-            </button>
-          ) : (
-            <div className="space-y-2">
-              <label className="block text-xs text-neutral-400">
-                確認のため、チーム名{" "}
-                <span className="text-neutral-200 font-medium">{team.name}</span>{" "}
-                を入力してください：
-              </label>
-              <input
-                type="text"
-                value={confirmName}
-                onChange={(e) => setConfirmName(e.target.value)}
-                placeholder={team.name}
-                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-600 focus:ring-2 focus:ring-red-500/50 focus:border-transparent"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={handleDeleteTeam}
-                  disabled={deleting || confirmName.trim() !== team.name}
-                  className="text-xs font-medium text-white bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-md px-3 py-1.5 transition"
-                >
-                  {deleting ? "削除中…" : "完全に削除"}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowDelete(false);
-                    setConfirmName("");
-                  }}
-                  className="text-xs text-neutral-400 hover:text-neutral-200 px-3 py-1.5"
-                >
-                  キャンセル
-                </button>
+        <div className="mt-6 glass rounded-xl overflow-hidden">
+          <button
+            onClick={() => {
+              setShowSettings((v) => {
+                const next = !v;
+                if (!next) {
+                  // Collapsing settings disarms the delete flow.
+                  setShowDelete(false);
+                  setConfirmName("");
+                }
+                return next;
+              });
+            }}
+            className="w-full flex items-center justify-between px-4 py-3 text-neutral-300 hover:bg-white/5 transition"
+            aria-expanded={showSettings}
+          >
+            <span className="font-semibold inline-flex items-center gap-2">
+              <GearIcon /> 設定
+            </span>
+            <ChevronIcon open={showSettings} />
+          </button>
+
+          {showSettings && (
+            <div className="px-4 pb-4 pt-2 border-t border-white/10">
+              <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
+                <h3 className="text-sm font-semibold text-red-300">チームを削除</h3>
+                <p className="text-xs text-neutral-400 mt-1 mb-3">
+                  投稿・動画・コメント・タグ・グループがすべて完全に削除されます。元に戻せません。
+                </p>
+
+                {!showDelete ? (
+                  <button
+                    onClick={() => setShowDelete(true)}
+                    className="text-xs font-medium text-red-400 hover:text-red-300 border border-red-400/40 hover:border-red-300/70 rounded-md px-3 py-1.5 transition"
+                  >
+                    チームを削除する
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="block text-xs text-neutral-400">
+                      最終確認：チーム名{" "}
+                      <span className="text-neutral-200 font-medium">{team.name}</span>{" "}
+                      を正確に入力すると削除ボタンが押せます。
+                    </label>
+                    <input
+                      type="text"
+                      value={confirmName}
+                      onChange={(e) => setConfirmName(e.target.value)}
+                      placeholder={team.name}
+                      autoComplete="off"
+                      className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-600 focus:ring-2 focus:ring-red-500/50 focus:border-transparent"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleDeleteTeam}
+                        disabled={deleting || confirmName.trim() !== team.name}
+                        className="text-xs font-medium text-white bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-md px-3 py-1.5 transition"
+                      >
+                        {deleting ? "削除中…" : "完全に削除する"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowDelete(false);
+                          setConfirmName("");
+                        }}
+                        className="text-xs text-neutral-400 hover:text-neutral-200 px-3 py-1.5"
+                      >
+                        キャンセル
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
