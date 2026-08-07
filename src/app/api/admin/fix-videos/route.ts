@@ -100,11 +100,16 @@ export async function POST(request: NextRequest) {
   }
 
   // Sweep abandoned uploads (a file was uploaded but the post was never saved).
+  // Files still referenced by a post are never touched. `minAgeMs=0` also sweeps
+  // very recent leftovers — only safe when nobody is mid-compose.
   if (request.nextUrl.searchParams.get("cleanup")) {
+    const minAge = request.nextUrl.searchParams.get("all")
+      ? 0
+      : ORPHAN_MIN_AGE_MS;
     const [objects, used] = await Promise.all([listBucket(), referencedUrls()]);
     const now = Date.now();
     const orphans = objects.filter(
-      (o) => !used.has(r2PublicUrl(o.key)) && now - o.modified.getTime() > ORPHAN_MIN_AGE_MS
+      (o) => !used.has(r2PublicUrl(o.key)) && now - o.modified.getTime() >= minAge
     );
     await deleteR2Objects(orphans.map((o) => o.key));
     return Response.json({
