@@ -63,6 +63,7 @@ export async function GET() {
   const now = Date.now();
 
   let usedBytes = 0;
+  let usedCount = 0;
   let orphanBytes = 0;
   let orphanCount = 0;
   let movBytes = 0;
@@ -71,6 +72,7 @@ export async function GET() {
     const url = r2PublicUrl(o.key);
     if (used.has(url)) {
       usedBytes += o.size;
+      usedCount++;
       if (isMovUrl(url)) {
         movBytes += o.size;
         movCount++;
@@ -85,7 +87,7 @@ export async function GET() {
   return Response.json({
     objects: objects.length,
     totalMB: mb(objects.reduce((s, o) => s + o.size, 0)),
-    inUse: { count: objects.length - orphanCount, MB: mb(usedBytes) },
+    inUse: { count: usedCount, MB: mb(usedBytes) },
     orphans: { count: orphanCount, MB: mb(orphanBytes), note: "older than 24h, not used by any post" },
     unconvertedMov: { count: movCount, MB: mb(movBytes) },
   });
