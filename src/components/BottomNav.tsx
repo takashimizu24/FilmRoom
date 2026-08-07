@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -73,6 +74,36 @@ export default function BottomNav() {
   const pathname = usePathname();
   const unread = useUnreadNotifications();
 
+  // The selected-tab highlight is a single element that slides between tabs
+  // rather than a background toggled per link. It's positioned by measuring the
+  // active link — so it stays correct whatever the tab sizes are — and written
+  // straight to the DOM, since this is layout syncing rather than render state.
+  const listRef = useRef<HTMLUListElement>(null);
+  const pillRef = useRef<HTMLSpanElement>(null);
+  const placed = useRef(false);
+
+  useEffect(() => {
+    const pill = pillRef.current;
+    if (!pill) return;
+    const el = listRef.current?.querySelector<HTMLElement>('[data-active="true"]');
+    if (!el) {
+      pill.style.opacity = "0"; // no tab matches this route (e.g. a post page)
+      return;
+    }
+    // The first placement shouldn't animate in from the left edge; only moves
+    // between tabs should slide.
+    if (!placed.current) pill.style.transition = "none";
+    pill.style.width = `${el.offsetWidth}px`;
+    pill.style.height = `${el.offsetHeight}px`;
+    pill.style.transform = `translate(${el.offsetLeft}px, ${el.offsetTop}px)`;
+    pill.style.opacity = "1";
+    if (!placed.current) {
+      void pill.offsetWidth; // flush the jump, then hand control back to CSS
+      pill.style.transition = "";
+      placed.current = true;
+    }
+  }, [pathname, status]);
+
   // Only for logged-in app screens; keep it out of the auth pages.
   if (status !== "authenticated") return null;
   if (pathname === "/login" || pathname === "/register") return null;
@@ -90,20 +121,33 @@ export default function BottomNav() {
     // `pointer-events-none` on the wrapper keeps the gaps beside the bar tappable.
     <nav
       className="sm:hidden fixed inset-x-0 z-50 flex justify-center pointer-events-none"
-      style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+      // Sit 24px above the safe area. With the bar's own 29px radius that puts
+      // its corner curve at ~53px from the screen edge — near iPhone's ~55pt
+      // display radius — so the capsule reads as concentric with the screen
+      // instead of crowding the curve or the home indicator.
+      style={{ bottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
     >
       <ul
-        className="pointer-events-auto flex items-center gap-1 px-2 py-1.5 rounded-full glass-strong border border-white/15 shadow-xl shadow-black/40"
+        ref={listRef}
+        className="pointer-events-auto relative flex items-center gap-1 px-2 py-1.5 rounded-full glass-strong border border-white/15 shadow-xl shadow-black/40"
         style={{ backgroundColor: "rgba(17, 17, 20, 0.5)" }}
       >
+        {/* The highlight itself — slides to whichever tab is selected. */}
+        <span
+          ref={pillRef}
+          aria-hidden
+          className="absolute left-0 top-0 rounded-full bg-white/15 opacity-0 transition-transform duration-300 ease-out motion-reduce:transition-none"
+        />
+
         {tabs.map((t) => (
           <li key={t.href}>
             <Link
               href={t.href}
               aria-label={t.label}
               aria-current={t.active ? "page" : undefined}
-              className={`relative flex h-11 w-14 items-center justify-center rounded-full transition ${
-                t.active ? "bg-white/15 text-white" : "text-neutral-300 hover:bg-white/5 hover:text-white"
+              data-active={t.active ? "true" : undefined}
+              className={`relative flex h-11 w-14 items-center justify-center rounded-full transition-colors ${
+                t.active ? "text-white" : "text-neutral-300 hover:text-white"
               }`}
             >
               <t.Icon solid={t.active} />
