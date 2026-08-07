@@ -9,7 +9,7 @@ import {
   r2KeyFromUrl,
   deleteR2Objects,
 } from "@/lib/r2";
-import { convertMovToMp4 } from "@/lib/transcode";
+import { convertMovToMp4, probeVideoCodec } from "@/lib/transcode";
 import { Upload } from "@aws-sdk/lib-storage";
 import { createReadStream, createWriteStream } from "fs";
 import { unlink } from "fs/promises";
@@ -60,14 +60,22 @@ export async function convertStoredMov(url: string): Promise<boolean> {
   const tmpIn = path.join(os.tmpdir(), `${id}-in.mov`);
   const tmpOut = path.join(os.tmpdir(), `${id}.mp4`);
   try {
-    const res = await fetch(url);
-    if (!res.ok || !res.body) throw new Error(`download failed (${res.status})`);
-    await pipeline(
-      Readable.fromWeb(res.body as import("stream/web").ReadableStream),
-      createWriteStream(tmpIn)
-    );
+    // The container only has ~1GB of disk, and source clips can be hundreds of
+    // MB. ffmpeg can read the object straight over HTTP (it range-seeks for the
+    // moov atom), so avoid staging a local copy when that works; fall back to
+    // downloading if the remote read isn't usable.
+    let source = url;
+    if (!(await probeVideoCodec(url))) {
+      const res = await fetch(url);
+      if (!res.ok || !res.body) throw new Error(`download failed (${res.status})`);
+      await pipeline(
+        Readable.fromWeb(res.body as import("stream/web").ReadableStream),
+        createWriteStream(tmpIn)
+      );
+      source = tmpIn;
+    }
 
-    await convertMovToMp4(tmpIn, tmpOut);
+    await convertMovToMp4(source, tmpOut);
 
     const newKey = `${id}.mp4`;
     await new Upload({
