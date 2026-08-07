@@ -132,6 +132,7 @@ export default function BlockEditor({
 }) {
   const [uploading, setUploading] = useState<number | null>(null);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null); // "Uploading 2 of 5…"
+  const [conversionNotice, setConversionNotice] = useState(false); // a .MOV was uploaded
   // Uploads are slow, and the user keeps editing (typing in a text block) while
   // one runs. Handlers that resume after an `await` must not rebuild the list
   // from the `blocks` prop they captured before the upload — that snapshot is
@@ -254,7 +255,10 @@ export default function BlockEditor({
         body: file,
       });
       if (res.ok) {
-        const { url } = await res.json();
+        const { url, pendingConversion } = await res.json();
+        // .MOV is stored as-is and converted to MP4 after the post is saved, so
+        // the preview here may not play on a PC until that finishes.
+        if (pendingConversion) setConversionNotice(true);
         return url as string;
       }
       const { error } = await res.json().catch(() => ({ error: null }));
@@ -706,6 +710,13 @@ export default function BlockEditor({
       {uploading !== null && (
         <div className="text-center py-3 text-sm text-neutral-500">
           {uploadProgress ?? "Uploading..."}
+        </div>
+      )}
+
+      {conversionNotice && (
+        <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-200">
+          .MOV
+          の動画は、保存したあとに自動でMP4へ変換されます（変換が終わるまでPCでは再生できないことがあります）。
         </div>
       )}
 

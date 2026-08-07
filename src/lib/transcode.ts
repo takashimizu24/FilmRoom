@@ -73,7 +73,10 @@ export async function probeVideoCodec(input: string): Promise<string | null> {
 export async function convertMovToMp4(
   input: string,
   output: string,
-  timeoutMs = 240_000
+  // Transcoding runs in the background (never inside an HTTP request), so this
+  // is generous: a long clip from a PC can legitimately take many minutes, and
+  // cutting it short would leave an unplayable QuickTime file behind.
+  timeoutMs = 45 * 60_000
 ): Promise<void> {
   const codec = await probeVideoCodec(input);
 
@@ -89,10 +92,10 @@ export async function convertMovToMp4(
       "ffmpeg",
       [
         "-y",
-        // Single-threaded decode + encode keeps memory low enough for small
-        // containers — multi-threaded 4K HEVC (e.g. Dolby Vision) decode
-        // otherwise duplicates frame buffers per thread and gets OOM-killed.
-        "-threads", "1",
+        // Two threads: enough to keep long clips from crawling, but far below
+        // the per-thread frame buffers that got 4K HEVC (Dolby Vision) decodes
+        // OOM-killed on this container when ffmpeg used every core.
+        "-threads", "2",
         "-i", input,
         "-c:v", "libx264",
         "-preset", "veryfast",
@@ -101,7 +104,7 @@ export async function convertMovToMp4(
         "-vf", "scale='min(1920,iw)':'min(1920,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2",
         "-c:a", "aac",
         "-b:a", "128k",
-        "-threads", "1",
+        "-threads", "2",
         "-movflags", "+faststart",
         output,
       ],

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { isTeamMember } from "@/lib/team";
 import { parseBlocks } from "@/lib/tags";
 import { r2KeyFromUrl, deleteR2Objects } from "@/lib/r2";
+import { convertPostMovs } from "@/lib/videoFix";
 import type { Block } from "@/lib/types";
 import { NextRequest } from "next/server";
 
@@ -139,6 +140,10 @@ export async function PATCH(
   const newUrls = new Set(r2MediaFromBlocks(blocks as Block[]).map((m) => m.url));
   const removed = oldMedia.filter((m) => !newUrls.has(m.url));
   await deleteUnreferencedR2(removed);
+
+  // Convert any newly added QuickTime clips in the background (see the upload
+  // route: transcoding inside a request timed out on large files).
+  void convertPostMovs(id);
 
   return Response.json(post);
 }
