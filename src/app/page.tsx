@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Block } from "@/lib/types";
 import { YouTubePlayer, UploadedVideo } from "@/components/VideoPlayer";
@@ -15,6 +16,8 @@ interface Tag {
   name: string;
   count: number;
   color: string | null;
+  tagGroupId: string | null;
+  tagGroupName: string | null;
 }
 
 interface Group {
@@ -137,6 +140,7 @@ function MediaBlock({ block }: { block: Block }) {
 
 export default function HomePage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -260,6 +264,31 @@ export default function HomePage() {
   const basePosts = activeGroupId ? posts.filter((p) => p.groupId === activeGroupId) : posts;
 
   const tagLabel = activeTags.map((t) => `#${t}`).join(matchMode === "and" ? " + " : " or ");
+
+  // Tag pills split by their group (ungrouped last). The heading is dropped
+  // when nothing is grouped, so teams that don't use groups see the old flat list.
+  const tagSections = (() => {
+    const byGroup = new Map<string, { key: string; title: string | null; items: Tag[] }>();
+    const ungrouped: Tag[] = [];
+    for (const tag of tags) {
+      if (!tag.tagGroupId) {
+        ungrouped.push(tag);
+        continue;
+      }
+      const section = byGroup.get(tag.tagGroupId) ?? {
+        key: tag.tagGroupId,
+        title: tag.tagGroupName,
+        items: [],
+      };
+      section.items.push(tag);
+      byGroup.set(tag.tagGroupId, section);
+    }
+    const grouped = [...byGroup.values()];
+    if (ungrouped.length > 0) {
+      grouped.push({ key: "__ungrouped__", title: grouped.length > 0 ? "未分類" : null, items: ungrouped });
+    }
+    return grouped;
+  })();
 
   // Filtering by tag or searching by title shows results in two separate
   // sections: the individual clips (threads) that match, then the posts that
@@ -436,7 +465,24 @@ export default function HomePage() {
                 </h2>
                 <div className="space-y-6">
                   {mediaItems.map(({ block, key, post }) => (
-                    <div key={key} className="glass rounded-xl p-4">
+                    // Tapping the card (anywhere but the player or a link) opens
+                    // the post the clip belongs to.
+                    <div
+                      key={key}
+                      role="link"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        const el = e.target as HTMLElement;
+                        if (el.closest("a,button,video,iframe,input,select,textarea")) return;
+                        router.push(`/posts/${post.id}`);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && e.target === e.currentTarget) {
+                          router.push(`/posts/${post.id}`);
+                        }
+                      }}
+                      className="glass rounded-xl p-4 cursor-pointer hover:border-white/20 transition"
+                    >
                       <MediaBlock block={block} />
                       <MediaTagList tags={"tags" in block ? block.tags : undefined} colorMap={colorMap} />
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-500 mt-3">
@@ -495,35 +541,47 @@ export default function HomePage() {
             >
               All Posts
             </button>
-            {tags.map((tag) => {
-              const selected = activeTags.includes(tag.name);
-              return (
-                <button
-                  key={tag.name}
-                  onClick={() => toggleTag(tag.name)}
-                  aria-pressed={selected}
-                  style={
-                    tag.color
-                      ? {
-                          backgroundColor: hexAlpha(tag.color, selected ? 0.32 : 0.16) ?? undefined,
-                          borderColor: hexAlpha(tag.color, selected ? 0.75 : 0.4) ?? undefined,
-                          color: tag.color,
-                        }
-                      : undefined
-                  }
-                  className={`px-3 py-1 rounded-full text-xs border backdrop-blur-md transition ${
-                    tag.color
-                      ? ""
-                      : selected
-                        ? "bg-white/15 border-white/25 text-neutral-100"
-                        : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
-                  }`}
-                >
-                  {selected ? "✓ " : ""}#{tag.name} ({tag.count})
-                </button>
-              );
-            })}
           </div>
+
+          {/* Tags are listed under their group so the list stays readable as it
+              grows; ungrouped tags come last (unlabelled when they're the only ones). */}
+          {tagSections.map((section) => (
+            <div key={section.key}>
+              {section.title && (
+                <h3 className="text-[11px] font-semibold text-neutral-500 mb-1.5">{section.title}</h3>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {section.items.map((tag) => {
+                  const selected = activeTags.includes(tag.name);
+                  return (
+                    <button
+                      key={tag.name}
+                      onClick={() => toggleTag(tag.name)}
+                      aria-pressed={selected}
+                      style={
+                        tag.color
+                          ? {
+                              backgroundColor: hexAlpha(tag.color, selected ? 0.32 : 0.16) ?? undefined,
+                              borderColor: hexAlpha(tag.color, selected ? 0.75 : 0.4) ?? undefined,
+                              color: tag.color,
+                            }
+                          : undefined
+                      }
+                      className={`px-3 py-1 rounded-full text-xs border backdrop-blur-md transition ${
+                        tag.color
+                          ? ""
+                          : selected
+                            ? "bg-white/15 border-white/25 text-neutral-100"
+                            : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
+                      }`}
+                    >
+                      {selected ? "✓ " : ""}#{tag.name} ({tag.count})
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
 
           {activeTags.length >= 2 && (
             <div className="flex items-center gap-2 text-xs text-neutral-400">

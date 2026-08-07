@@ -29,12 +29,23 @@ CREATE TABLE IF NOT EXISTS "TeamMembership" (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS "TeamMembership_userId_teamId_key" ON "TeamMembership"("userId", "teamId");
 
+CREATE TABLE IF NOT EXISTS "TagGroup" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "name" TEXT NOT NULL,
+  "teamId" TEXT NOT NULL,
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "TagGroup_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "TagGroup_teamId_name_key" ON "TagGroup"("teamId", "name");
+
 CREATE TABLE IF NOT EXISTS "Tag" (
   "id" TEXT NOT NULL PRIMARY KEY,
   "name" TEXT NOT NULL,
   "color" TEXT,
   "teamId" TEXT NOT NULL,
-  CONSTRAINT "Tag_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  "tagGroupId" TEXT,
+  CONSTRAINT "Tag_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "Tag_tagGroupId_fkey" FOREIGN KEY ("tagGroupId") REFERENCES "TagGroup" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 CREATE UNIQUE INDEX IF NOT EXISTS "Tag_teamId_name_key" ON "Tag"("teamId", "name");
 

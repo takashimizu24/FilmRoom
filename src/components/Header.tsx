@@ -15,6 +15,8 @@ interface Team {
 interface TagCount {
   name: string;
   count: number;
+  tagGroupId?: string | null;
+  tagGroupName?: string | null;
 }
 
 const PlusIcon = () => (
@@ -161,11 +163,29 @@ export default function Header() {
                   <option value="" disabled>
                     #
                   </option>
-                  {tags.map((t) => (
-                    <option key={t.name} value={t.name}>
-                      #{t.name} ({t.count})
-                    </option>
+                  {/* Grouped tags first, under their group name; then the rest. */}
+                  {[...new Map(
+                    tags
+                      .filter((t) => t.tagGroupId)
+                      .map((t) => [t.tagGroupId as string, t.tagGroupName ?? ""])
+                  ).entries()].map(([groupId, groupName]) => (
+                    <optgroup key={groupId} label={groupName}>
+                      {tags
+                        .filter((t) => t.tagGroupId === groupId)
+                        .map((t) => (
+                          <option key={t.name} value={t.name}>
+                            #{t.name} ({t.count})
+                          </option>
+                        ))}
+                    </optgroup>
                   ))}
+                  {tags
+                    .filter((t) => !t.tagGroupId)
+                    .map((t) => (
+                      <option key={t.name} value={t.name}>
+                        #{t.name} ({t.count})
+                      </option>
+                    ))}
                 </select>
               )}
 

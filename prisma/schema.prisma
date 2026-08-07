@@ -27,6 +27,7 @@ model Team {
   posts       Post[]
   tags        Tag[]
   groups      Group[]
+  tagGroups   TagGroup[]
 }
 
 model TeamMembership {
@@ -42,12 +43,28 @@ model TeamMembership {
 }
 
 model Tag {
-  id     String  @id @default(cuid())
-  name   String
-  color  String?
-  teamId String
-  team   Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  posts  Post[]
+  id         String    @id @default(cuid())
+  name       String
+  color      String?
+  teamId     String
+  team       Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  posts      Post[]
+  // Optional bucket the tag is filed under, so long tag lists stay browsable.
+  tagGroupId String?
+  tagGroup   TagGroup? @relation(fields: [tagGroupId], references: [id], onDelete: SetNull)
+
+  @@unique([teamId, name])
+}
+
+// A named bucket for tags (e.g. "オフェンス", "選手"). Tags may belong to one
+// group or none; ungrouped tags are still listed, just last.
+model TagGroup {
+  id        String   @id @default(cuid())
+  name      String
+  teamId    String
+  createdAt DateTime @default(now())
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  tags      Tag[]
 
   @@unique([teamId, name])
 }

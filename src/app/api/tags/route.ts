@@ -25,11 +25,14 @@ export async function GET(request: NextRequest) {
       where: { teamId },
       select: { blocks: true, tags: { select: { name: true } } },
     }),
-    // Tag rows act as the per-team colour registry (keyed by name).
-    prisma.tag.findMany({ where: { teamId }, select: { name: true, color: true } }),
+    // Tag rows act as the per-team colour/grouping registry (keyed by name).
+    prisma.tag.findMany({
+      where: { teamId },
+      select: { name: true, color: true, tagGroupId: true, tagGroup: { select: { name: true } } },
+    }),
   ]);
 
-  const colorByName = new Map(tagRows.map((t) => [t.name, t.color]));
+  const metaByName = new Map(tagRows.map((t) => [t.name, t]));
 
   // Count is the number of tagged media items (clips) a tag would surface, so it
   // matches the clip list shown when the tag is searched. A media block is findable
@@ -55,20 +58,31 @@ export async function GET(request: NextRequest) {
   }
 
   const tags = [...counts.entries()]
-    .map(([name, count]) => ({ name, count, color: colorByName.get(name) ?? null }))
+    .map(([name, count]) => {
+      const meta = metaByName.get(name);
+      return {
+        name,
+        count,
+        color: meta?.color ?? null,
+        tagGroupId: meta?.tagGroupId ?? null,
+        tagGroupName: meta?.tagGroup?.name ?? null,
+      };
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return Response.json(tags);
 }
 
-// Set (or clear) the colour of a tag by name for a team.
+// Set a tag's colour and/or the group it's filed under. Both are optional:
+// only the keys present in the body are changed.
 export async function PATCH(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return Response.json({ error: "Login required" }, { status: 401 });
   }
 
-  const { teamId, name, color } = await request.json();
+  const body = await request.json();
+  const { teamId, name, color, tagGroupId } = body;
   if (!teamId || !name || typeof name !== "string") {
     return Response.json({ error: "teamId and name are required" }, { status: 400 });
   }
@@ -76,12 +90,24 @@ export async function PATCH(request: NextRequest) {
     return Response.json({ error: "Not a member of this team" }, { status: 403 });
   }
 
-  const normalized = normalizeHexColor(color);
+  const data: { color?: string | null; tagGroupId?: string | null } = {};
+  if ("color" in body) data.color = normalizeHexColor(color);
+  if ("tagGroupId" in body) {
+    // Only accept a group that belongs to this team.
+    if (tagGroupId) {
+      const group = await prisma.tagGroup.findFirst({ where: { id: tagGroupId, teamId } });
+      data.tagGroupId = group ? group.id : null;
+    } else {
+      data.tagGroupId = null;
+    }
+  }
+
   const tag = await prisma.tag.upsert({
     where: { teamId_name: { teamId, name } },
-    update: { color: normalized },
-    create: { name, teamId, color: normalized },
+    update: data,
+    create: { name, teamId, color: data.color ?? null, tagGroupId: data.tagGroupId ?? null },
+    select: { name: true, color: true, tagGroupId: true },
   });
 
-  return Response.json({ name: tag.name, color: tag.color });
+  return Response.json(tag);
 }

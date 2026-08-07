@@ -23,6 +23,7 @@ sqlite3 "$DATABASE_FILE" < /app/prisma/schema.sql
 sqlite3 "$DATABASE_FILE" 'ALTER TABLE "Message" ADD COLUMN "parentId" TEXT;' 2>/dev/null || true
 sqlite3 "$DATABASE_FILE" 'ALTER TABLE "Message" ADD COLUMN "blockRef" INTEGER;' 2>/dev/null || true
 sqlite3 "$DATABASE_FILE" 'ALTER TABLE "TeamMembership" ADD COLUMN "role" TEXT NOT NULL DEFAULT '\''member'\'';' 2>/dev/null || true
+sqlite3 "$DATABASE_FILE" 'ALTER TABLE "Tag" ADD COLUMN "tagGroupId" TEXT;' 2>/dev/null || true
 
 # Backfill: for any team that has no admin yet, promote its earliest member
 # (the de-facto creator) to admin. Only touches admin-less teams, so it is safe
