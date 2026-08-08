@@ -458,7 +458,61 @@ export default function BlockEditor({
       />
 
       {blocks.map((block, i) => (
-        <div key={i} className="group relative bg-neutral-900 border border-neutral-800 rounded-xl p-4">
+        <div key={i}>
+        {/* Group boundary: marking a block as a group start makes it open a new
+            set in the post. The first block always opens one, so it only gets
+            the title field. */}
+        {i > 0 && (
+          block.groupStart ? (
+            <div className="flex items-center gap-2 mt-6 mb-2">
+              <span className="h-px flex-1 bg-sky-400/30" />
+              <input
+                type="text"
+                value={block.groupTitle ?? ""}
+                onChange={(e) => updateBlock(i, { ...block, groupTitle: e.target.value })}
+                placeholder="グループ名（任意）"
+                className="w-40 sm:w-56 px-2 py-1 bg-neutral-800 border border-neutral-700 rounded-lg text-xs text-neutral-100 placeholder-neutral-600 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const next = { ...block };
+                  delete next.groupStart;
+                  delete next.groupTitle;
+                  updateBlock(i, next);
+                }}
+                className="text-[11px] text-neutral-500 hover:text-neutral-300 transition shrink-0"
+              >
+                区切りを解除
+              </button>
+              <span className="h-px flex-1 bg-sky-400/30" />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 my-2 opacity-0 focus-within:opacity-100 hover:opacity-100 transition">
+              <span className="h-px flex-1 bg-white/10" />
+              <button
+                type="button"
+                onClick={() => updateBlock(i, { ...block, groupStart: true })}
+                className="text-[11px] text-neutral-500 hover:text-neutral-200 border border-white/10 hover:border-white/25 rounded-full px-2.5 py-0.5 transition shrink-0"
+              >
+                ここで区切る
+              </button>
+              <span className="h-px flex-1 bg-white/10" />
+            </div>
+          )
+        )}
+        {i === 0 && block.groupTitle !== undefined && (
+          <div className="flex items-center gap-2 mb-2">
+            <input
+              type="text"
+              value={block.groupTitle ?? ""}
+              onChange={(e) => updateBlock(i, { ...block, groupTitle: e.target.value })}
+              placeholder="グループ名（任意）"
+              className="w-40 sm:w-56 px-2 py-1 bg-neutral-800 border border-neutral-700 rounded-lg text-xs text-neutral-100 placeholder-neutral-600 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
+            />
+          </div>
+        )}
+        <div className="group relative bg-neutral-900 border border-neutral-800 rounded-xl p-4">
           {/* Block controls */}
           <div className="absolute -left-10 top-1/2 -translate-y-1/2 flex flex-col gap-1">
             <button
@@ -704,6 +758,7 @@ export default function BlockEditor({
               />
             </div>
           )}
+        </div>
         </div>
       ))}
 

@@ -21,3 +21,38 @@ export function blockLabel(block: Block, index: number): string {
 export function blockAnchorId(index: number): string {
   return `post-block-${index}`;
 }
+
+/** A run of consecutive blocks shown as one set, with their original indices. */
+export type BlockGroupSlice = {
+  /** Index of the block that opens the set — stable id for the set. */
+  startIndex: number;
+  title?: string;
+  items: { block: Block; index: number }[];
+};
+
+/**
+ * Split a post's blocks into the sets marked by `groupStart`. Blocks before the
+ * first marker form the opening set. Indices are preserved so comments, anchors
+ * and tags keep pointing at the same block.
+ */
+export function groupBlocks(blocks: Block[]): BlockGroupSlice[] {
+  const groups: BlockGroupSlice[] = [];
+  blocks.forEach((block, index) => {
+    const startsHere = index === 0 || block.groupStart === true;
+    if (startsHere) {
+      groups.push({ startIndex: index, title: block.groupTitle?.trim() || undefined, items: [] });
+    }
+    groups[groups.length - 1].items.push({ block, index });
+  });
+  return groups;
+}
+
+/** Whether the post uses grouping at all (older posts render exactly as before). */
+export function hasGroups(blocks: Block[]): boolean {
+  return blocks.some((b, i) => i > 0 && b.groupStart === true);
+}
+
+/** The set a given block index belongs to. */
+export function groupOfIndex(blocks: Block[], index: number): BlockGroupSlice | null {
+  return groupBlocks(blocks).find((g) => g.items.some((it) => it.index === index)) ?? null;
+}

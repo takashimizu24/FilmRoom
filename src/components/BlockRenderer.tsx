@@ -6,7 +6,7 @@ import { YouTubePlayer, UploadedVideo } from "./VideoPlayer";
 import MediaCarousel from "./MediaCarousel";
 import TagList from "./TagList";
 import BlockComments from "./BlockComments";
-import { blockAnchorId } from "@/lib/blocks";
+import { blockAnchorId, groupBlocks, hasGroups } from "@/lib/blocks";
 import { linkify } from "@/lib/linkify";
 
 function TextBlock({ content }: { content: string }) {
@@ -92,10 +92,15 @@ export default function BlockRenderer({
   // Requires the tree to be wrapped in <CommentsProvider>.
   withComments?: boolean;
 }) {
-  return (
-    <div className="space-y-4">
-      {blocks.map((block, i) => {
-        let media: React.ReactNode = null;
+  // Blocks marked as a group start begin a new set; each set is drawn as a card
+  // so a clip and the text explaining it read as one unit. Posts with no groups
+  // render exactly as they always did.
+  const grouped = hasGroups(blocks);
+  const groups = groupBlocks(blocks);
+
+  const renderBlock = (block: Block, i: number) => {
+    {
+      let media: React.ReactNode = null;
         switch (block.type) {
           case "text":
             media = <TextBlock content={block.content} />;
@@ -141,7 +146,29 @@ export default function BlockRenderer({
             )}
           </div>
         );
-      })}
+    }
+  };
+
+  if (!grouped) {
+    return <div className="space-y-4">{blocks.map((block, i) => renderBlock(block, i))}</div>;
+  }
+
+  return (
+    <div className="space-y-5">
+      {groups.map((group) => (
+        <section
+          key={group.startIndex}
+          className="glass rounded-2xl p-4"
+          style={{ backgroundColor: "rgba(10, 10, 12, 0.55)" }}
+        >
+          {group.title && (
+            <h2 className="text-sm font-semibold text-neutral-200 mb-3">{group.title}</h2>
+          )}
+          <div className="space-y-4">
+            {group.items.map(({ block, index }) => renderBlock(block, index))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

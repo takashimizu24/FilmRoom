@@ -10,6 +10,7 @@ import MediaCarousel from "@/components/MediaCarousel";
 import GroupBadge, { FolderIcon } from "@/components/GroupBadge";
 import TagList from "@/components/TagList";
 import { useSearch } from "@/components/SearchContext";
+import { groupBlocks, hasGroups } from "@/lib/blocks";
 import { hexAlpha, contrastText } from "@/lib/color";
 
 interface Tag {
@@ -302,22 +303,43 @@ export default function HomePage() {
 
   // Threads: media blocks matched by their OWN tags (a post-level tag surfaces
   // the post in the section below instead of flooding this list with its clips).
+  const blockMatches = (block: Block, post: Post) => {
+    if (!isMedia(block)) return false;
+    const blockTags = "tags" in block ? block.tags ?? [] : [];
+    if (activeTags.length > 0 && !matchesTags(blockTags)) return false;
+    if (searchTerm) {
+      const caption = "caption" in block ? block.caption ?? "" : "";
+      const haystack = `${caption} ${post.title}`.toLowerCase();
+      if (!haystack.includes(searchTerm)) return false;
+    }
+    return true;
+  };
+
+  // A hit is shown with the set it belongs to, so a clip arrives together with
+  // the text that explains it. Posts that don't use grouping keep the old
+  // behaviour of listing the matching clip on its own.
   const mediaItems = filtering
-    ? basePosts.flatMap((post) =>
-        post.blocks
-          .map((block, idx) => ({ block, key: `${post.id}-${idx}`, post }))
-          .filter(({ block }) => {
-            if (!isMedia(block)) return false;
-            const blockTags = "tags" in block ? block.tags ?? [] : [];
-            if (activeTags.length > 0 && !matchesTags(blockTags)) return false;
-            if (searchTerm) {
-              const caption = "caption" in block ? block.caption ?? "" : "";
-              const haystack = `${caption} ${post.title}`.toLowerCase();
-              if (!haystack.includes(searchTerm)) return false;
-            }
-            return true;
-          })
-      )
+    ? basePosts.flatMap((post) => {
+        if (!hasGroups(post.blocks)) {
+          return post.blocks
+            .map((block, index) => ({ block, index }))
+            .filter(({ block }) => blockMatches(block, post))
+            .map(({ block, index }) => ({
+              key: `${post.id}-${index}`,
+              post,
+              title: undefined as string | undefined,
+              items: [{ block, index }],
+            }));
+        }
+        return groupBlocks(post.blocks)
+          .filter((group) => group.items.some(({ block }) => blockMatches(block, post)))
+          .map((group) => ({
+            key: `${post.id}-g${group.startIndex}`,
+            post,
+            title: group.title,
+            items: group.items,
+          }));
+      })
     : [];
 
   // Posts: matched by their own (post-level) tags and/or title.
@@ -464,7 +486,7 @@ export default function HomePage() {
                   スレッド <span className="text-neutral-600">({mediaItems.length})</span>
                 </h2>
                 <div className="space-y-6">
-                  {mediaItems.map(({ block, key, post }) => (
+                  {mediaItems.map(({ key, post, title, items }) => (
                     // Tapping the card (anywhere but the player or a link) opens
                     // the post the clip belongs to.
                     <div
@@ -483,8 +505,29 @@ export default function HomePage() {
                       }}
                       className="glass rounded-xl p-4 cursor-pointer hover:border-white/20 transition"
                     >
-                      <MediaBlock block={block} />
-                      <MediaTagList tags={"tags" in block ? block.tags : undefined} colorMap={colorMap} />
+                      {title && (
+                        <h3 className="text-sm font-semibold text-neutral-200 mb-2">{title}</h3>
+                      )}
+                      <div className="space-y-3">
+                        {items.map(({ block, index }) =>
+                          block.type === "text" ? (
+                            <p
+                              key={index}
+                              className="text-sm text-neutral-300 leading-relaxed whitespace-pre-line"
+                            >
+                              {block.content}
+                            </p>
+                          ) : (
+                            <div key={index}>
+                              <MediaBlock block={block} />
+                              <MediaTagList
+                                tags={"tags" in block ? block.tags : undefined}
+                                colorMap={colorMap}
+                              />
+                            </div>
+                          )
+                        )}
+                      </div>
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-500 mt-3">
                         {post.group && <GroupBadge group={post.group} />}
                         <Link
