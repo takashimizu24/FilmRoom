@@ -152,7 +152,10 @@ export default function BottomNav() {
               aria-label={t.label}
               aria-current={t.active ? "page" : undefined}
               data-active={t.active ? "true" : undefined}
-              className={`relative flex h-11 w-14 items-center justify-center rounded-full transition-[color,transform] duration-150 active:scale-90 motion-reduce:active:scale-100 ${
+              // 71px per tab (was 56) widens the whole bar by 60px while keeping
+              // the icons evenly spread; the sliding pill measures the tab, so it
+              // follows automatically.
+              className={`relative flex h-11 w-[71px] items-center justify-center rounded-full transition-[color,transform] duration-150 active:scale-90 motion-reduce:active:scale-100 ${
                 t.active ? "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]" : "text-neutral-300 hover:text-white"
               }`}
             >
