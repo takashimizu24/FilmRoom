@@ -51,6 +51,45 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+/* Liquid Glass: a thick lens-like pane rather than a flat frosted sheet. The
+   heavy blur plus over-saturation gives the refracted colour, the masked
+   gradient ring is the specular highlight running round the rim, and the inset
+   highlights read as the thickness of the glass. Currently used by the mobile
+   bottom nav; kept separate from `.glass` so it can be rolled out gradually. */
+.liquid-glass {
+  @apply backdrop-blur-2xl backdrop-saturate-200 backdrop-brightness-110;
+  position: relative;
+  background-color: rgba(30, 30, 36, 0.42);
+  box-shadow:
+    /* light catching the inside of the top and bottom edges = thickness */
+    inset 0 1px 1px rgba(255, 255, 255, 0.4),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.1),
+    /* the pane floating above the content */
+    0 12px 32px rgba(0, 0, 0, 0.45),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Specular rim: brightest where the light hits, fading round the pane. */
+.liquid-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 0.65),
+    rgba(255, 255, 255, 0.14) 35%,
+    rgba(255, 255, 255, 0.06) 62%,
+    rgba(255, 255, 255, 0.4)
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+}
+
 /* Group-colour accent on a card's border: strongest at the bottom-right, fading
    to transparent toward the top-left. A masked pseudo-element draws only the
    1px ring, so it respects the rounded corners and layers over the glass border.

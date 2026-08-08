@@ -129,14 +129,20 @@ export default function BottomNav() {
     >
       <ul
         ref={listRef}
-        className="pointer-events-auto relative flex items-center gap-1 px-2 py-1.5 rounded-full glass-strong border border-white/15 shadow-xl shadow-black/40"
-        style={{ backgroundColor: "rgba(17, 17, 20, 0.5)" }}
+        className="pointer-events-auto relative flex items-center gap-1 px-2 py-1.5 rounded-full liquid-glass"
       >
-        {/* The highlight itself — slides to whichever tab is selected. */}
+        {/* The highlight itself — a brighter lens inside the pane that slides to
+            whichever tab is selected, easing with a slight overshoot so the
+            movement reads as liquid rather than mechanical. */}
         <span
           ref={pillRef}
           aria-hidden
-          className="absolute left-0 top-0 rounded-full bg-white/15 opacity-0 transition-transform duration-300 ease-out motion-reduce:transition-none"
+          className="absolute left-0 top-0 rounded-full bg-white/20 opacity-0 transition-transform duration-300 motion-reduce:transition-none"
+          style={{
+            transitionTimingFunction: "cubic-bezier(0.34, 1.4, 0.64, 1)",
+            boxShadow:
+              "inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -1px 0 rgba(255,255,255,0.12), 0 1px 3px rgba(0,0,0,0.35)",
+          }}
         />
 
         {tabs.map((t) => (
@@ -146,8 +152,8 @@ export default function BottomNav() {
               aria-label={t.label}
               aria-current={t.active ? "page" : undefined}
               data-active={t.active ? "true" : undefined}
-              className={`relative flex h-11 w-14 items-center justify-center rounded-full transition-colors ${
-                t.active ? "text-white" : "text-neutral-300 hover:text-white"
+              className={`relative flex h-11 w-14 items-center justify-center rounded-full transition-[color,transform] duration-150 active:scale-90 motion-reduce:active:scale-100 ${
+                t.active ? "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]" : "text-neutral-300 hover:text-white"
               }`}
             >
               <t.Icon solid={t.active} />
