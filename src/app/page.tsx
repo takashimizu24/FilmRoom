@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -69,17 +69,25 @@ function isMedia(block: Block): boolean {
 // of the filtered/search results.
 function PostCard({ post, colorMap }: { post: Post; colorMap: Map<string, string | null> }) {
   const { videos, images } = getMediaCounts(post.blocks);
+  const groupColor = post.group?.color ?? null;
   return (
     <Link
       href={`/posts/${post.id}`}
-      style={{
-        // Darker, blacker card surface than the shared `.glass` default.
-        backgroundColor: "rgba(10, 10, 12, 0.72)",
-        ...(post.group?.color ? { "--group-color": hexAlpha(post.group.color, 0.9) } : {}),
-      } as CSSProperties}
-      className={`glass relative block rounded-xl p-4 hover:border-white/20 transition ${
-        post.group?.color ? "group-border" : ""
-      }`}
+      style={
+        groupColor
+          ? {
+              // A faint wash of the group's colour across the pane — enough to
+              // tell groups apart at a glance without competing with the glass.
+              // It sits in the element's own background, so it stays under the
+              // text rather than tinting it.
+              backgroundImage: `linear-gradient(135deg, ${hexAlpha(groupColor, 0.2)}, ${hexAlpha(
+                groupColor,
+                0.05
+              )} 55%, rgba(255,255,255,0) 88%)`,
+            }
+          : undefined
+      }
+      className="liquid-glass block rounded-2xl p-4 transition hover:brightness-110"
     >
       <div className="flex flex-wrap items-start gap-x-2 gap-y-1 mb-1.5">
         {post.group && (
