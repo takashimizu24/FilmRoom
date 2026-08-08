@@ -76,11 +76,11 @@ function PostCard({ post, colorMap }: { post: Post; colorMap: Map<string, string
       style={
         groupColor
           ? {
-              // A faint wash of the group's colour across the pane — enough to
-              // tell groups apart at a glance without competing with the glass.
-              // It sits in the element's own background, so it stays under the
-              // text rather than tinting it.
-              backgroundImage: `linear-gradient(135deg, ${hexAlpha(groupColor, 0.2)}, ${hexAlpha(
+              // A faint wash of the group's colour rising from the bottom-right
+              // corner — enough to tell groups apart at a glance without
+              // competing with the glass. It sits in the element's own
+              // background, so it tints the pane rather than the text.
+              backgroundImage: `linear-gradient(315deg, ${hexAlpha(groupColor, 0.2)}, ${hexAlpha(
                 groupColor,
                 0.05
               )} 55%, rgba(255,255,255,0) 88%)`,
