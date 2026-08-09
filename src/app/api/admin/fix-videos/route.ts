@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { isTeamAdmin } from "@/lib/team";
 import { parseBlocks } from "@/lib/tags";
-import { getR2Client, r2Enabled, R2_BUCKET, r2PublicUrl, deleteR2Objects } from "@/lib/r2";
+import { getR2Client, r2Enabled, R2_BUCKET, r2PublicUrl, r2KeyFromUrl, deleteR2Objects } from "@/lib/r2";
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { convertStoredMov, isMovUrl, mediaUrls } from "@/lib/videoFix";
 import { NextRequest } from "next/server";
@@ -62,6 +62,14 @@ export async function GET() {
   const [objects, used] = await Promise.all([listBucket(), referencedUrls()]);
   const now = Date.now();
 
+  // The reverse of an orphan: a post still points at a file that is no longer in
+  // the bucket. Those play as a silent black box, so surface them by name.
+  const present = new Set(objects.map((o) => r2PublicUrl(o.key)));
+  const brokenRefs: string[] = [];
+  for (const url of used) {
+    if (r2KeyFromUrl(url) && !present.has(url)) brokenRefs.push(url);
+  }
+
   let usedBytes = 0;
   let usedCount = 0;
   let orphanBytes = 0;
@@ -90,6 +98,11 @@ export async function GET() {
     inUse: { count: usedCount, MB: mb(usedBytes) },
     orphans: { count: orphanCount, MB: mb(orphanBytes), note: "older than 24h, not used by any post" },
     unconvertedMov: { count: movCount, MB: mb(movBytes) },
+    brokenRefs: {
+      count: brokenRefs.length,
+      note: "referenced by a post but missing from storage — needs re-uploading",
+      urls: brokenRefs,
+    },
   });
 }
 

@@ -145,6 +145,9 @@ export function UploadedVideo({ url }: { url: string }) {
   const [pipSupported, setPipSupported] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [holdPaused, setHoldPaused] = useState(false);
+  // A file that has gone missing from storage otherwise plays as a silent black
+  // box, which reads as "the app is broken" rather than "this clip is gone".
+  const [loadFailed, setLoadFailed] = useState(false);
 
   // Gesture bookkeeping for tap-to-toggle-controls and press-and-hold-to-pause.
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -333,10 +336,25 @@ export function UploadedVideo({ url }: { url: string }) {
           }}
           onEnded={() => setControlsVisible(true)}
           onTimeUpdate={() => setCurrent(videoRef.current?.currentTime ?? 0)}
-          onLoadedMetadata={() => setDuration(videoRef.current?.duration ?? 0)}
+          onLoadedMetadata={() => {
+            setDuration(videoRef.current?.duration ?? 0);
+            setLoadFailed(false);
+          }}
+          onError={() => setLoadFailed(true)}
           onVolumeChange={() => setMuted(videoRef.current?.muted ?? false)}
           className="w-full max-h-[500px] block"
         />
+
+        {/* The file couldn't be loaded at all — say so instead of showing a
+            black rectangle with dead controls. */}
+        {loadFailed && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-1 bg-black/80 px-6 text-center">
+            <p className="text-sm text-neutral-200">この動画を読み込めませんでした</p>
+            <p className="text-xs text-neutral-500">
+              ファイルが見つかりません。もう一度アップロードしてください。
+            </p>
+          </div>
+        )}
 
         {/* Gesture surface: tap toggles controls, press-and-hold pauses. */}
         <div
