@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -11,7 +11,7 @@ import GroupBadge, { FolderIcon } from "@/components/GroupBadge";
 import TagList from "@/components/TagList";
 import { useSearch } from "@/components/SearchContext";
 import { groupBlocks, hasGroups } from "@/lib/blocks";
-import { hexAlpha, contrastText } from "@/lib/color";
+import { hexAlpha } from "@/lib/color";
 
 interface Tag {
   name: string;
@@ -63,6 +63,25 @@ function isMedia(block: Block): boolean {
     block.type === "youtube" ||
     block.type === "carousel"
   );
+}
+
+// The group filter chips are finished like the group badge on a card: squared
+// (a category, not a #tag), a light on the top edge, the colour ring drawn as an
+// inset shadow, and a small drop shadow. Selection only turns the tint and the
+// ring up, plus a soft halo — the shape never changes.
+const groupChipClass =
+  "px-3 py-1 rounded-md text-xs font-medium backdrop-blur-md backdrop-saturate-150 transition";
+
+function groupChipStyle(color: string | null, active: boolean): CSSProperties {
+  const base = color ?? "#e5e5e5";
+  const tint = hexAlpha(base, active ? 0.36 : 0.16) ?? undefined;
+  const ring = hexAlpha(base, active ? 0.85 : 0.32) ?? undefined;
+  const halo = active ? `, 0 0 0 3px ${hexAlpha(base, 0.12)}` : "";
+  return {
+    backgroundColor: tint,
+    color: color ? base : active ? "#f5f5f5" : "#d4d4d4",
+    boxShadow: `inset 0 1px 0 rgba(255,255,255,${active ? 0.4 : 0.28}), inset 0 0 0 1px ${ring}${halo}, 0 1px 3px rgba(0,0,0,0.35)`,
+  };
 }
 
 // A post row on the board. Shared by the default list and the "ポスト" section
@@ -423,16 +442,15 @@ export default function HomePage() {
       )}
 
       <div className="mb-6 space-y-3">
-        {/* Group tabs — squared, folder-icon style so they read as categories (vs #tag pills) */}
+        {/* Group tabs — same squared glass chip as the group badge on a card, so
+            the filter and the label on a post read as the same object. Selection
+            is shown by a stronger tint and a soft halo, not a different shape. */}
         {groups.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setActiveGroupId(null)}
-              className={`px-3 py-1 rounded-md text-xs transition ${
-                activeGroupId === null
-                  ? "bg-neutral-200 text-neutral-900"
-                  : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
-              }`}
+              style={groupChipStyle(null, activeGroupId === null)}
+              className={groupChipClass}
             >
               All Groups
             </button>
@@ -442,14 +460,10 @@ export default function HomePage() {
                 <button
                   key={g.id}
                   onClick={() => setActiveGroupId(active ? null : g.id)}
-                  style={active ? { backgroundColor: g.color || "#e5e5e5", color: contrastText(g.color) } : undefined}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition inline-flex items-center gap-1.5 ${
-                    active ? "" : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
-                  }`}
+                  style={groupChipStyle(g.color, active)}
+                  className={`${groupChipClass} inline-flex items-center gap-1.5`}
                 >
-                  <span style={active ? undefined : { color: g.color || "#a3a3a3" }} className="inline-flex">
-                    <FolderIcon />
-                  </span>
+                  <FolderIcon />
                   {g.name} ({g.count})
                 </button>
               );
