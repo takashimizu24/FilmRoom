@@ -83,7 +83,7 @@ export default function MediaCarousel({ items }: { items: CarouselItem[] }) {
             </button>
           )}
 
-          <div className="absolute top-2.5 right-2.5 z-20 inline-flex items-center gap-1 text-sm font-bold bg-black/70 text-white pl-1.5 pr-2.5 py-1 rounded-full pointer-events-none shadow-lg ring-1 ring-white/25">
+          <div className="absolute top-2.5 right-2.5 z-20 inline-flex items-center gap-1 text-sm font-bold bg-black/70 text-white pl-1.5 pr-2.5 py-1 rounded-full pointer-events-none shadow-lg ring-1 ring-line-strong">
             <span className="text-sky-300"><StackIcon /></span>
             <span className="tabular-nums">{index + 1} / {items.length}</span>
           </div>
@@ -96,7 +96,7 @@ export default function MediaCarousel({ items }: { items: CarouselItem[] }) {
                 onClick={() => go(i)}
                 aria-label={`Go to item ${i + 1}`}
                 className={`h-2 rounded-full transition-all ${
-                  i === index ? "w-6 bg-sky-400" : "w-2 bg-white/35 hover:bg-white/60"
+                  i === index ? "w-6 bg-sky-400" : "w-2 bg-neutral-600 hover:bg-neutral-400"
                 }`}
               />
             ))}

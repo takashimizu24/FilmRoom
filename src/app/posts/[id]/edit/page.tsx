@@ -252,7 +252,7 @@ export default function EditPostPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="flex-1 bg-neutral-700 text-neutral-100 py-3 rounded-lg hover:bg-neutral-600 disabled:opacity-50 transition font-medium"
+            className="flex-1 bg-cta text-cta-ink py-3 rounded-lg hover:bg-cta-hover disabled:opacity-50 transition font-medium"
           >
             {submitting ? "Saving..." : "Save Changes"}
           </button>

@@ -30,9 +30,115 @@
   --n-900: #171717;
   --n-950: #0a0a0a;
 
+  /* Hairlines and raised fills. These are white-on-dark, so they can't simply
+     invert with the ramp — they get their own tokens. */
+  --line: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.25);
+  --lift: rgba(255, 255, 255, 0.05);
+  --lift-2: rgba(255, 255, 255, 0.1);
+  --lift-3: rgba(255, 255, 255, 0.15);
+
+  /* Primary actions. `neutral-700` can't serve this in both themes — it is also
+     the input border, which has to go light while the button stays emphatic. */
+  --cta: #404040;
+  --cta-hover: #525252;
+  --cta-ink: #f5f5f5;
+
+  /* Glass surfaces. Dark glass is lifted by an inner white highlight; light
+     glass has to be lifted by a shadow instead, since white on white vanishes. */
+  --glass-bg: rgba(23, 23, 26, 0.55);
+  --glass-line: rgba(255, 255, 255, 0.09);
+  --glass-strong-bg: rgba(17, 17, 20, 0.78);
+  --glass-strong-line: rgba(255, 255, 255, 0.12);
+  --lg-bg: rgba(30, 30, 36, 0.42);
+  --lg-bright: 1.1;
+  --lg-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), inset 0 -1px 1px rgba(255, 255, 255, 0.1),
+    0 12px 32px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --lg-rim: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 0.65),
+    rgba(255, 255, 255, 0.14) 35%,
+    rgba(255, 255, 255, 0.06) 62%,
+    rgba(255, 255, 255, 0.4)
+  );
+
+  /* Chips and pills that carry a user-chosen hue (groups, tags). On a dark
+     ground the hue is legible as-is; on a light one it has to be pulled toward
+     the text colour, so the theme sets how far. */
+  --hue-ink-mix: 100%;
+  --hue-ink-base: transparent;
+  --sheen-line: rgba(255, 255, 255, 0.3);
+  --chip-drop: rgba(0, 0, 0, 0.35);
+
+  /* The page ground. */
+  --page-bg: #08080a;
+  --page-glow:
+    radial-gradient(42rem 42rem at 12% -8%, rgba(79, 108, 255, 0.2), transparent 60%),
+    radial-gradient(38rem 38rem at 108% 6%, rgba(168, 85, 247, 0.16), transparent 58%),
+    radial-gradient(40rem 40rem at 50% 116%, rgba(20, 150, 190, 0.14), transparent 58%);
+
   /* Render native UI (video control menus, form controls, scrollbars) in dark
      mode so the playback-speed "⋮" menu has legible text/icons on our dark UI. */
   color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------------------
+   Light theme. The ramp is not a straight inversion: 100–600 are text and run
+   dark → light, while 700–950 are surfaces and borders and run light → lighter.
+   That keeps every existing class in the role it already had.
+   --------------------------------------------------------------------------- */
+:root[data-theme="light"] {
+  --background: #fbfbfd;
+  --foreground: #14161c;
+
+  --n-50: #05060a;
+  --n-100: #14161c;
+  --n-200: #262a33;
+  --n-300: #3d434f;
+  --n-400: #5a6070;
+  --n-500: #767d8c;
+  --n-600: #949aa7;
+  --n-700: #d3d7de;
+  --n-800: #e9ecf1;
+  --n-900: #f2f4f7;
+  --n-950: #fbfbfd;
+
+  --line: rgba(20, 22, 30, 0.12);
+  --line-strong: rgba(20, 22, 30, 0.28);
+  --lift: rgba(20, 22, 30, 0.04);
+  --lift-2: rgba(20, 22, 30, 0.07);
+  --lift-3: rgba(20, 22, 30, 0.11);
+
+  --cta: #1f2430;
+  --cta-hover: #2c3341;
+  --cta-ink: #f7f8fb;
+
+  --glass-bg: rgba(255, 255, 255, 0.66);
+  --glass-line: rgba(20, 22, 30, 0.1);
+  --glass-strong-bg: rgba(255, 255, 255, 0.86);
+  --glass-strong-line: rgba(20, 22, 30, 0.12);
+  --lg-bg: rgba(255, 255, 255, 0.66);
+  --lg-bright: 1.02;
+  --lg-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 10px 30px rgba(35, 40, 70, 0.12),
+    0 1px 2px rgba(35, 40, 70, 0.08);
+  --lg-rim: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 1),
+    rgba(255, 255, 255, 0.5) 38%,
+    rgba(35, 40, 70, 0.08) 70%,
+    rgba(35, 40, 70, 0.14)
+  );
+
+  --hue-ink-mix: 68%;
+  --hue-ink-base: #14161c;
+  --sheen-line: rgba(255, 255, 255, 0.9);
+  --chip-drop: rgba(30, 34, 50, 0.14);
+
+  /* Flat, per the chosen direction — no ambient glow on the light ground. */
+  --page-bg: #fbfbfd;
+  --page-glow: none;
+
+  color-scheme: light;
 }
 
 /* Ensure the native video controls (and their overflow / playback-speed menu)
@@ -60,16 +166,24 @@ video {
   --color-neutral-800: var(--n-800);
   --color-neutral-900: var(--n-900);
   --color-neutral-950: var(--n-950);
+
+  /* Hairlines / raised fills, so `border-white/10`-style values can flip too. */
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-lift: var(--lift);
+  --color-lift-2: var(--lift-2);
+  --color-lift-3: var(--lift-3);
+
+  --color-cta: var(--cta);
+  --color-cta-hover: var(--cta-hover);
+  --color-cta-ink: var(--cta-ink);
 }
 
 body {
-  /* Ambient colour glows on a near-black base, so the frosted-glass surfaces
-     have something to refract behind them. Fixed so it stays put while scrolling. */
-  background-color: #08080a;
-  background-image:
-    radial-gradient(42rem 42rem at 12% -8%, rgba(79, 108, 255, 0.20), transparent 60%),
-    radial-gradient(38rem 38rem at 108% 6%, rgba(168, 85, 247, 0.16), transparent 58%),
-    radial-gradient(40rem 40rem at 50% 116%, rgba(20, 150, 190, 0.14), transparent 58%);
+  /* Dark carries ambient colour glows so the frosted surfaces have something to
+     refract; light is flat. Fixed so it stays put while scrolling. */
+  background-color: var(--page-bg);
+  background-image: var(--page-glow);
   background-attachment: fixed;
   background-repeat: no-repeat;
   color: var(--foreground);
@@ -82,14 +196,14 @@ body {
   /* Use Tailwind's backdrop utilities so the blur composes correctly (a raw
      backdrop-filter here gets dropped by the CSS pipeline). */
   @apply backdrop-blur-md backdrop-saturate-150;
-  background-color: rgba(23, 23, 26, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background-color: var(--glass-bg);
+  border: 1px solid var(--glass-line);
 }
 
 .glass-strong {
   @apply backdrop-blur-xl backdrop-saturate-150;
-  background-color: rgba(17, 17, 20, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background-color: var(--glass-strong-bg);
+  border: 1px solid var(--glass-strong-line);
 }
 
 /* Liquid Glass: a thick lens-like pane rather than a flat frosted sheet. The
@@ -98,16 +212,21 @@ body {
    highlights read as the thickness of the glass. Currently used by the mobile
    bottom nav; kept separate from `.glass` so it can be rolled out gradually. */
 .liquid-glass {
+  /* Only Tailwind's backdrop utilities — a raw `backdrop-filter` here is dropped
+     by the CSS pipeline, and writing one alongside these silently removed the
+     blur altogether. */
   @apply backdrop-blur-2xl backdrop-saturate-200 backdrop-brightness-110;
   position: relative;
-  background-color: rgba(30, 30, 36, 0.42);
-  box-shadow:
-    /* light catching the inside of the top and bottom edges = thickness */
-    inset 0 1px 1px rgba(255, 255, 255, 0.4),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.1),
-    /* the pane floating above the content */
-    0 12px 32px rgba(0, 0, 0, 0.45),
-    0 2px 8px rgba(0, 0, 0, 0.3);
+  background-color: var(--lg-bg);
+  /* Dark: an inner white highlight does the lifting. Light: a cast shadow does,
+     since a white highlight on a white ground is invisible. */
+  box-shadow: var(--lg-shadow);
+}
+
+/* Brightening the backdrop is right over a dark ground but washes out a light
+   one, so light drops it. */
+:root[data-theme="light"] .liquid-glass {
+  @apply backdrop-brightness-100;
 }
 
 /* Specular rim: brightest where the light hits, fading round the pane. */
@@ -117,18 +236,18 @@ body {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(
-    140deg,
-    rgba(255, 255, 255, 0.65),
-    rgba(255, 255, 255, 0.14) 35%,
-    rgba(255, 255, 255, 0.06) 62%,
-    rgba(255, 255, 255, 0.4)
-  );
+  background: var(--lg-rim);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
           mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
   pointer-events: none;
+}
+
+/* The wordmark is drawn in white, which disappears on a light header. Flipping
+   it to near-black keeps the same artwork in both themes. */
+:root[data-theme="light"] .app-logo {
+  filter: invert(1) brightness(0.12);
 }
 
 /* Group-colour accent on a card's border: strongest at the bottom-right, fading

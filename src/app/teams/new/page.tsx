@@ -69,7 +69,7 @@ export default function NewTeamPage() {
           type="button"
           onClick={() => setMode("create")}
           className={`flex-1 py-2 rounded-md text-sm transition ${
-            mode === "create" ? "bg-neutral-700 text-neutral-100" : "text-neutral-400 hover:text-neutral-200"
+            mode === "create" ? "bg-cta text-cta-ink" : "text-neutral-400 hover:text-neutral-200"
           }`}
         >
           Create Team
@@ -78,7 +78,7 @@ export default function NewTeamPage() {
           type="button"
           onClick={() => setMode("join")}
           className={`flex-1 py-2 rounded-md text-sm transition ${
-            mode === "join" ? "bg-neutral-700 text-neutral-100" : "text-neutral-400 hover:text-neutral-200"
+            mode === "join" ? "bg-cta text-cta-ink" : "text-neutral-400 hover:text-neutral-200"
           }`}
         >
           Join Team
@@ -119,7 +119,7 @@ export default function NewTeamPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full bg-neutral-700 text-neutral-100 py-2 rounded-lg hover:bg-neutral-600 disabled:opacity-50 transition"
+          className="w-full bg-cta text-cta-ink py-2 rounded-lg hover:bg-cta-hover disabled:opacity-50 transition"
         >
           {submitting ? "Please wait..." : mode === "create" ? "Create Team" : "Join Team"}
         </button>

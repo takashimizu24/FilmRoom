@@ -73,14 +73,26 @@ const groupChipClass =
   "px-3 py-1 rounded-md text-xs font-medium backdrop-blur-md backdrop-saturate-150 transition";
 
 function groupChipStyle(color: string | null, active: boolean): CSSProperties {
-  const base = color ?? "#e5e5e5";
-  const tint = hexAlpha(base, active ? 0.36 : 0.16) ?? undefined;
-  const ring = hexAlpha(base, active ? 0.85 : 0.32) ?? undefined;
-  const halo = active ? `, 0 0 0 3px ${hexAlpha(base, 0.12)}` : "";
+  // The "All groups" chip has no colour of its own, so it is drawn from the
+  // theme tokens instead — a fixed grey would vanish on a light ground.
+  if (!color) {
+    return {
+      backgroundColor: active ? "var(--lift-3)" : "var(--lift)",
+      color: active ? "var(--n-100)" : "var(--n-300)",
+      boxShadow: `inset 0 1px 0 var(--sheen-line), inset 0 0 0 1px ${
+        active ? "var(--line-strong)" : "var(--line)"
+      }, 0 1px 3px var(--chip-drop)`,
+    };
+  }
+  const tint = hexAlpha(color, active ? 0.36 : 0.16) ?? undefined;
+  const ring = hexAlpha(color, active ? 0.85 : 0.32) ?? undefined;
+  const halo = active ? `, 0 0 0 3px ${hexAlpha(color, 0.12)}` : "";
   return {
     backgroundColor: tint,
-    color: color ? base : active ? "#f5f5f5" : "#d4d4d4",
-    boxShadow: `inset 0 1px 0 rgba(255,255,255,${active ? 0.4 : 0.28}), inset 0 0 0 1px ${ring}${halo}, 0 1px 3px rgba(0,0,0,0.35)`,
+    // A group's own hue is legible on a dark ground but too pale on a light one,
+    // so the theme decides how far it gets pulled toward the text colour.
+    color: `color-mix(in srgb, ${color} var(--hue-ink-mix), var(--hue-ink-base))`,
+    boxShadow: `inset 0 1px 0 var(--sheen-line), inset 0 0 0 1px ${ring}${halo}, 0 1px 3px var(--chip-drop)`,
   };
 }
 
@@ -260,7 +272,7 @@ export default function HomePage() {
         </p>
         <Link
           href="/login"
-          className="inline-block bg-neutral-700 hover:bg-neutral-600 text-neutral-100 px-6 py-2.5 rounded-lg text-sm transition"
+          className="inline-block bg-cta hover:bg-cta-hover text-cta-ink px-6 py-2.5 rounded-lg text-sm transition"
         >
           Log In
         </Link>
@@ -277,7 +289,7 @@ export default function HomePage() {
         </p>
         <Link
           href="/teams/new"
-          className="inline-block bg-neutral-700 hover:bg-neutral-600 text-neutral-100 px-6 py-2.5 rounded-lg text-sm transition"
+          className="inline-block bg-cta hover:bg-cta-hover text-cta-ink px-6 py-2.5 rounded-lg text-sm transition"
         >
           Create or Join Team
         </Link>
@@ -423,7 +435,7 @@ export default function HomePage() {
             <button
               onClick={() => setTitleQuery("")}
               aria-label="タイトル検索を解除"
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs border border-white/12 bg-white/6 text-neutral-300 backdrop-blur-md transition hover:bg-white/10"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs border border-line bg-lift text-neutral-300 backdrop-blur-md transition hover:bg-lift-2"
             >
               「{titleQuery.trim()}」
               <span aria-hidden className="text-sm leading-none opacity-70">
@@ -525,7 +537,7 @@ export default function HomePage() {
                           router.push(`/posts/${post.id}`);
                         }
                       }}
-                      className="glass rounded-xl p-4 cursor-pointer hover:border-white/20 transition"
+                      className="glass rounded-xl p-4 cursor-pointer hover:border-line-strong transition"
                     >
                       {title && (
                         <h3 className="text-sm font-semibold text-neutral-200 mb-2">{title}</h3>
@@ -594,14 +606,14 @@ export default function HomePage() {
 
       {/* Tag list — placed below the post list */}
       {tags.length > 0 && (
-        <div className="mt-8 pt-6 border-t border-white/10 space-y-3">
+        <div className="mt-8 pt-6 border-t border-line space-y-3">
           <div className="flex flex-wrap gap-2">
             <button
               onClick={clearFilters}
               className={`px-3 py-1 rounded-full text-xs border backdrop-blur-md transition ${
                 activeTags.length === 0
-                  ? "bg-white/15 border-white/25 text-neutral-100"
-                  : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
+                  ? "bg-lift-3 border-line-strong text-neutral-100"
+                  : "bg-lift border-line text-neutral-400 hover:bg-lift-2"
               }`}
             >
               All Posts
@@ -628,7 +640,7 @@ export default function HomePage() {
                           ? {
                               backgroundColor: hexAlpha(tag.color, selected ? 0.32 : 0.16) ?? undefined,
                               borderColor: hexAlpha(tag.color, selected ? 0.75 : 0.4) ?? undefined,
-                              color: tag.color,
+                              color: `color-mix(in srgb, ${tag.color} var(--hue-ink-mix), var(--hue-ink-base))`,
                             }
                           : undefined
                       }
@@ -636,8 +648,8 @@ export default function HomePage() {
                         tag.color
                           ? ""
                           : selected
-                            ? "bg-white/15 border-white/25 text-neutral-100"
-                            : "bg-white/5 border-white/10 text-neutral-400 hover:bg-white/10"
+                            ? "bg-lift-3 border-line-strong text-neutral-100"
+                            : "bg-lift border-line text-neutral-400 hover:bg-lift-2"
                       }`}
                     >
                       {selected ? "✓ " : ""}#{tag.name} ({tag.count})

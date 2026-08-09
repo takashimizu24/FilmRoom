@@ -110,11 +110,11 @@ export default function Header() {
   }
 
   return (
-    <header className="bg-neutral-900/50 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
+    <header className="bg-neutral-900/50 backdrop-blur-xl border-b border-line sticky top-0 z-50">
       <div className="max-w-5xl mx-auto px-3 sm:px-4 h-14 flex items-center justify-between gap-2 sm:gap-4">
         <Link href="/" className="shrink-0 flex items-center" aria-label="FilmRoom home">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="FilmRoom" className="h-7 sm:h-8 w-auto" />
+          <img src="/logo.svg" alt="FilmRoom" className="app-logo h-7 sm:h-8 w-auto" />
         </Link>
         <nav className="flex items-center gap-2 min-w-0 flex-1 justify-end">
           {session ? (
@@ -143,8 +143,8 @@ export default function Header() {
                     aria-expanded={searchOpen}
                     className={`sm:hidden inline-flex items-center justify-center h-9 w-9 rounded-lg transition shrink-0 ${
                       searchOpen || titleQuery
-                        ? "bg-neutral-800 text-white"
-                        : "text-neutral-300 hover:text-white hover:bg-neutral-800"
+                        ? "bg-neutral-800 text-neutral-100"
+                        : "text-neutral-300 hover:text-neutral-100 hover:bg-neutral-800"
                     }`}
                   >
                     <SearchIcon />
@@ -195,8 +195,8 @@ export default function Header() {
                 aria-label="お知らせ"
                 className={`hidden sm:inline-flex relative items-center justify-center h-9 w-9 rounded-lg transition shrink-0 ${
                   pathname === "/notifications"
-                    ? "bg-neutral-800 text-white"
-                    : "text-neutral-300 hover:text-white hover:bg-neutral-800"
+                    ? "bg-neutral-800 text-neutral-100"
+                    : "text-neutral-300 hover:text-neutral-100 hover:bg-neutral-800"
                 }`}
               >
                 <BellIcon />
@@ -210,7 +210,7 @@ export default function Header() {
               <Link
                 href="/posts/new"
                 aria-label="New Post"
-                className="bg-neutral-700 text-neutral-100 h-9 w-9 sm:w-auto sm:pl-2.5 sm:pr-3 rounded-lg text-sm hover:bg-neutral-600 transition inline-flex items-center justify-center sm:justify-start gap-1.5 shrink-0"
+                className="bg-cta text-cta-ink h-9 w-9 sm:w-auto sm:pl-2.5 sm:pr-3 rounded-lg text-sm hover:bg-cta-hover transition inline-flex items-center justify-center sm:justify-start gap-1.5 shrink-0"
               >
                 <PlusIcon />
                 <span className="hidden sm:inline">New Post</span>
@@ -223,7 +223,7 @@ export default function Header() {
                   onClick={() => setMenuOpen((o) => !o)}
                   aria-label="Settings"
                   aria-expanded={menuOpen}
-                  className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-neutral-300 hover:text-white hover:bg-neutral-800 transition"
+                  className="inline-flex items-center justify-center h-9 w-9 rounded-lg text-neutral-300 hover:text-neutral-100 hover:bg-neutral-800 transition"
                 >
                   <GearIcon />
                 </button>
@@ -281,7 +281,7 @@ export default function Header() {
 
       {/* Mobile: the title-search box drops in below the bar when toggled. */}
       {session && pathname === "/" && searchOpen && (
-        <div className="sm:hidden border-t border-white/10 px-3 pb-2 pt-2">
+        <div className="sm:hidden border-t border-line px-3 pb-2 pt-2">
           <div className="relative max-w-5xl mx-auto">
             <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500">
               <SearchIcon />

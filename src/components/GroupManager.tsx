@@ -73,14 +73,14 @@ export default function GroupManager({ teamId }: { teamId: string }) {
 
   return (
     <div className="glass rounded-xl overflow-hidden mt-6">
-      <div className="bg-white/5 px-4 py-3 border-b border-white/10">
+      <div className="bg-lift px-4 py-3 border-b border-line">
         <h2 className="font-semibold text-neutral-300">Groups</h2>
       </div>
 
       {loading ? (
         <div className="px-4 py-3 text-sm text-neutral-500">Loading...</div>
       ) : (
-        <ul className="divide-y divide-white/10">
+        <ul className="divide-y divide-line">
           {groups.map((g) => (
             <li key={g.id} className="px-4 py-3 flex items-center gap-3">
               <span
@@ -116,7 +116,7 @@ export default function GroupManager({ teamId }: { teamId: string }) {
       )}
 
       {/* Add group */}
-      <div className="px-4 py-3 border-t border-white/10 flex items-center gap-2">
+      <div className="px-4 py-3 border-t border-line flex items-center gap-2">
         <input
           type="color"
           value={newColor}
@@ -137,7 +137,7 @@ export default function GroupManager({ teamId }: { teamId: string }) {
         <button
           onClick={create}
           disabled={creating || !newName.trim()}
-          className="px-3 py-1.5 bg-neutral-700 hover:bg-neutral-600 disabled:opacity-50 rounded-lg text-sm text-neutral-100 transition shrink-0"
+          className="px-3 py-1.5 bg-cta hover:bg-cta-hover disabled:opacity-50 rounded-lg text-sm text-cta-ink transition shrink-0"
         >
           Add
         </button>

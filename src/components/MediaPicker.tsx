@@ -59,7 +59,7 @@ export default function MediaPicker({
               return (
                 <div
                   key={`${item.type}|${item.url}`}
-                  className="flex flex-col bg-white/5 border border-white/10 rounded-lg overflow-hidden"
+                  className="flex flex-col bg-lift border border-line rounded-lg overflow-hidden"
                 >
                   <div className="relative aspect-video min-h-[160px] bg-black flex items-center justify-center">
                     {item.type === "image" && (
@@ -128,7 +128,7 @@ export default function MediaPicker({
                     <button
                       type="button"
                       onClick={() => onPick(item)}
-                      className="w-full py-2.5 bg-neutral-100 hover:bg-white active:bg-neutral-300 rounded-lg text-sm font-semibold text-neutral-900 transition"
+                      className="w-full py-2.5 bg-cta hover:bg-cta-hover active:opacity-90 rounded-lg text-sm font-semibold text-cta-ink transition"
                     >
                       Use this
                     </button>

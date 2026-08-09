@@ -37,17 +37,18 @@ export default function GroupBadge({
         group.color
           ? {
               backgroundColor: hexAlpha(group.color, 0.22) ?? undefined,
-              color: group.color,
-              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.35), inset 0 0 0 1px ${hexAlpha(
+              // Pulled toward the text colour on a light ground, left as-is on dark.
+              color: `color-mix(in srgb, ${group.color} var(--hue-ink-mix), var(--hue-ink-base))`,
+              boxShadow: `inset 0 1px 0 var(--sheen-line), inset 0 0 0 1px ${hexAlpha(
                 group.color,
                 0.45
-              )}, 0 1px 3px rgba(0,0,0,0.35)`,
+              )}, 0 1px 3px var(--chip-drop)`,
             }
           : {
-              backgroundColor: "rgba(255,255,255,0.08)",
-              color: "#d4d4d4",
+              backgroundColor: "var(--lift-2)",
+              color: "var(--n-300)",
               boxShadow:
-                "inset 0 1px 0 rgba(255,255,255,0.3), inset 0 0 0 1px rgba(255,255,255,0.14), 0 1px 3px rgba(0,0,0,0.35)",
+                "inset 0 1px 0 var(--sheen-line), inset 0 0 0 1px var(--line), 0 1px 3px var(--chip-drop)",
             }
       }
     >

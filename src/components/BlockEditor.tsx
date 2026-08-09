@@ -489,15 +489,15 @@ export default function BlockEditor({
             </div>
           ) : (
             <div className="flex items-center gap-2 my-2 opacity-0 focus-within:opacity-100 hover:opacity-100 transition">
-              <span className="h-px flex-1 bg-white/10" />
+              <span className="h-px flex-1 bg-lift-2" />
               <button
                 type="button"
                 onClick={() => updateBlock(i, { ...block, groupStart: true })}
-                className="text-[11px] text-neutral-500 hover:text-neutral-200 border border-white/10 hover:border-white/25 rounded-full px-2.5 py-0.5 transition shrink-0"
+                className="text-[11px] text-neutral-500 hover:text-neutral-200 border border-line hover:border-line-strong rounded-full px-2.5 py-0.5 transition shrink-0"
               >
                 ここで区切る
               </button>
-              <span className="h-px flex-1 bg-white/10" />
+              <span className="h-px flex-1 bg-lift-2" />
             </div>
           )
         )}

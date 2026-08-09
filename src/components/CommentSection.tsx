@@ -204,7 +204,7 @@ export default function CommentSection({
                     type="button"
                     onClick={() => handleReply(top.id)}
                     disabled={sending || !replyInput.trim()}
-                    className="shrink-0 bg-neutral-700 text-neutral-100 px-3 py-1.5 rounded-lg text-sm hover:bg-neutral-600 disabled:opacity-50 transition"
+                    className="shrink-0 bg-cta text-cta-ink px-3 py-1.5 rounded-lg text-sm hover:bg-cta-hover disabled:opacity-50 transition"
                   >
                     Reply
                   </button>
@@ -238,7 +238,7 @@ export default function CommentSection({
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="shrink-0 bg-neutral-700 text-neutral-100 px-4 py-2 rounded-lg text-sm hover:bg-neutral-600 disabled:opacity-50 transition"
+            className="shrink-0 bg-cta text-cta-ink px-4 py-2 rounded-lg text-sm hover:bg-cta-hover disabled:opacity-50 transition"
           >
             Send
           </button>

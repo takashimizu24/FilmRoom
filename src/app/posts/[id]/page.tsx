@@ -131,7 +131,7 @@ export default function PostPage() {
             onClick={handleShare}
             aria-label={copied ? "Copied" : "Share"}
             title={copied ? "Copied" : "Share"}
-            className="flex items-center justify-center w-10 h-10 bg-neutral-700 hover:bg-neutral-600 text-neutral-100 rounded-lg transition"
+            className="flex items-center justify-center w-10 h-10 bg-cta hover:bg-cta-hover text-cta-ink rounded-lg transition"
           >
             {copied ? <CheckIcon /> : <ShareIcon />}
           </button>
@@ -168,7 +168,7 @@ export default function PostPage() {
 
         {session ? (
           <div className="glass print:hidden rounded-xl overflow-hidden">
-            <div className="bg-white/5 px-4 py-3 border-b border-white/10">
+            <div className="bg-lift px-4 py-3 border-b border-line">
               <h3 className="font-semibold text-neutral-300">Comments on the whole post</h3>
             </div>
             <div className="p-4">

@@ -137,7 +137,7 @@ export default function BottomNav() {
         <span
           ref={pillRef}
           aria-hidden
-          className="absolute left-0 top-0 rounded-full bg-white/20 opacity-0 transition-transform duration-300 motion-reduce:transition-none"
+          className="absolute left-0 top-0 rounded-full bg-lift-3 opacity-0 transition-transform duration-300 motion-reduce:transition-none"
           style={{
             transitionTimingFunction: "cubic-bezier(0.34, 1.4, 0.64, 1)",
             boxShadow:
@@ -156,7 +156,7 @@ export default function BottomNav() {
               // the icons evenly spread; the sliding pill measures the tab, so it
               // follows automatically.
               className={`relative flex h-11 w-[71px] items-center justify-center rounded-full transition-[color,transform] duration-150 active:scale-90 motion-reduce:active:scale-100 ${
-                t.active ? "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]" : "text-neutral-300 hover:text-white"
+                t.active ? "text-neutral-100 " : "text-neutral-300 hover:text-neutral-100"
               }`}
             >
               <t.Icon solid={t.active} />

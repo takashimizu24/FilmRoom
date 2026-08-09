@@ -36,7 +36,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-8 px-4 py-12">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.svg" alt="FilmRoom" className="h-24 sm:h-28 w-auto" />
+      <img src="/logo.svg" alt="FilmRoom" className="app-logo h-24 sm:h-28 w-auto" />
       <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-xl p-8">
         <h1 className="text-2xl font-bold text-center text-neutral-100 mb-6">Log In</h1>
         {error && (
@@ -66,7 +66,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-neutral-700 text-neutral-100 py-2 rounded-lg hover:bg-neutral-600 disabled:opacity-50 transition"
+            className="w-full bg-cta text-cta-ink py-2 rounded-lg hover:bg-cta-hover disabled:opacity-50 transition"
           >
             {loading ? "Logging in..." : "Log In"}
           </button>

@@ -223,7 +223,7 @@ export default function NewPostPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full bg-neutral-700 text-neutral-100 py-3 rounded-lg hover:bg-neutral-600 disabled:opacity-50 transition font-medium"
+          className="w-full bg-cta text-cta-ink py-3 rounded-lg hover:bg-cta-hover disabled:opacity-50 transition font-medium"
         >
           {submitting ? "Posting..." : "Post"}
         </button>

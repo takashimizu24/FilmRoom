@@ -175,7 +175,7 @@ export default function TeamPage() {
             <button
               onClick={handleSaveName}
               disabled={saving}
-              className="px-3 py-1.5 bg-neutral-700 hover:bg-neutral-600 rounded-lg text-sm text-neutral-100 transition"
+              className="px-3 py-1.5 bg-cta hover:bg-cta-hover rounded-lg text-sm text-cta-ink transition"
             >
               Save
             </button>
@@ -219,7 +219,7 @@ export default function TeamPage() {
       </div>
 
       <div className="glass rounded-xl overflow-hidden">
-        <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between gap-2">
+        <div className="bg-lift px-4 py-3 border-b border-line flex items-center justify-between gap-2">
           <h2 className="font-semibold text-neutral-300">
             Members ({team.memberships.length})
           </h2>
@@ -232,7 +232,7 @@ export default function TeamPage() {
             </button>
           )}
         </div>
-        <ul className="divide-y divide-white/10">
+        <ul className="divide-y divide-line">
           {team.memberships.map((m) => {
             const isMe = m.user.id === session.user?.id;
             return (
@@ -283,7 +283,7 @@ export default function TeamPage() {
                 return next;
               });
             }}
-            className="w-full flex items-center justify-between px-4 py-3 text-neutral-300 hover:bg-white/5 transition"
+            className="w-full flex items-center justify-between px-4 py-3 text-neutral-300 hover:bg-lift transition"
             aria-expanded={showSettings}
           >
             <span className="font-semibold inline-flex items-center gap-2">
@@ -293,7 +293,7 @@ export default function TeamPage() {
           </button>
 
           {showSettings && (
-            <div className="px-4 pb-4 pt-2 border-t border-white/10">
+            <div className="px-4 pb-4 pt-2 border-t border-line">
               <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
                 <h3 className="text-sm font-semibold text-red-300">チームを削除</h3>
                 <p className="text-xs text-neutral-400 mt-1 mb-3">

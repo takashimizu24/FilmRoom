@@ -44,7 +44,7 @@ function Glyph({ it }: { it: ActivityItem }) {
     return <div className={`${base} bg-emerald-500/15 text-emerald-300`}>🎬</div>;
   if (it.media === "image")
     return <div className={`${base} bg-violet-500/15 text-violet-300`}>🖼</div>;
-  return <div className={`${base} bg-white/10 text-neutral-300`}>📝</div>;
+  return <div className={`${base} bg-lift-2 text-neutral-300`}>📝</div>;
 }
 
 export default function NotificationsPage() {
@@ -99,14 +99,14 @@ export default function NotificationsPage() {
           まだお知らせはありません。<br />動画やコメントが追加されると、ここに表示されます。
         </div>
       ) : (
-        <ul className="glass rounded-xl divide-y divide-white/10 overflow-hidden">
+        <ul className="glass rounded-xl divide-y divide-line overflow-hidden">
           {items.map((it) => {
             const isNew = new Date(it.createdAt).getTime() > lastSeen && it.actorId !== session?.user?.id;
             return (
               <li key={`${it.kind}-${it.id}`}>
                 <Link
                   href={`/posts/${it.postId}`}
-                  className={`flex items-start gap-3 px-4 py-3 transition hover:bg-white/5 ${isNew ? "bg-sky-500/5" : ""}`}
+                  className={`flex items-start gap-3 px-4 py-3 transition hover:bg-lift ${isNew ? "bg-sky-500/5" : ""}`}
                 >
                   <Glyph it={it} />
                   <div className="min-w-0 flex-1">

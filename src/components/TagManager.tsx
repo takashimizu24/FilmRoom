@@ -92,7 +92,7 @@ export default function TagManager({ teamId }: { teamId: string }) {
 
   return (
     <div className="glass rounded-xl overflow-hidden mt-6">
-      <div className="bg-white/5 px-4 py-3 border-b border-white/10">
+      <div className="bg-lift px-4 py-3 border-b border-line">
         <h2 className="font-semibold text-neutral-300">タグ</h2>
         <p className="text-xs text-neutral-500 mt-0.5">
           グループを作ると、タグが増えても一覧が見やすくなります。
@@ -103,7 +103,7 @@ export default function TagManager({ teamId }: { teamId: string }) {
         <div className="px-4 py-3 text-sm text-neutral-500">Loading...</div>
       ) : (
         <>
-          <div className="px-4 py-3 border-b border-white/10">
+          <div className="px-4 py-3 border-b border-line">
             <form onSubmit={addGroup} className="flex gap-2">
               <input
                 type="text"
@@ -115,7 +115,7 @@ export default function TagManager({ teamId }: { teamId: string }) {
               <button
                 type="submit"
                 disabled={creating || !newGroup.trim()}
-                className="shrink-0 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 disabled:opacity-40 rounded-lg text-sm text-neutral-100 transition"
+                className="shrink-0 px-4 py-2 bg-cta hover:bg-cta-hover disabled:opacity-40 rounded-lg text-sm text-cta-ink transition"
               >
                 追加
               </button>
@@ -130,7 +130,7 @@ export default function TagManager({ teamId }: { teamId: string }) {
           ) : (
             sections.map((section) => (
               <div key={section.key}>
-                <div className="px-4 py-2 bg-white/5 border-b border-white/10 flex items-center gap-2">
+                <div className="px-4 py-2 bg-lift border-b border-line flex items-center gap-2">
                   <h3 className="text-xs font-semibold text-neutral-400">
                     {section.title}{" "}
                     <span className="text-neutral-600 font-normal">({section.items.length})</span>
@@ -151,14 +151,17 @@ export default function TagManager({ teamId }: { teamId: string }) {
                     このグループのタグはまだありません。下のタグの「グループ」から選ぶと入ります。
                   </p>
                 ) : (
-                  <ul className="divide-y divide-white/10">
+                  <ul className="divide-y divide-line">
                     {section.items.map((t) => (
                       <li key={t.name} className="px-4 py-3 flex flex-wrap items-center gap-2">
                         <span
                           className="inline-flex items-center px-2.5 py-1 rounded-full text-xs"
                           style={{
-                            backgroundColor: t.color || "#262626",
-                            color: t.color ? contrastText(t.color) : "#a3a3a3",
+                            // A coloured tag is a solid chip, so contrastText
+                            // already suits either theme; only the uncoloured
+                            // fallback needs to follow the theme.
+                            backgroundColor: t.color || "var(--n-800)",
+                            color: t.color ? contrastText(t.color) : "var(--n-400)",
                           }}
                         >
                           #{t.name}
