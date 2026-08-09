@@ -1,8 +1,35 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Theme tokens.
+
+   The neutral ramp is already used semantically all over the app — `neutral-100`
+   is always the most prominent text, `neutral-800` always a raised surface — so
+   the ramp is defined here as variables rather than as fixed greys. A theme then
+   only has to redefine these; every existing `text-neutral-300` follows along.
+
+   Read the scale as "distance from the background", not "how light":
+     n-100 … strongest text        n-500/600 … muted text
+     n-700/800/900 … raised surfaces and borders
+   In the light theme the ramp is inverted, so the same class stays the same
+   role. Values below are the current dark palette, unchanged.
+   --------------------------------------------------------------------------- */
 :root {
   --background: #0a0a0a;
   --foreground: #e5e5e5;
+
+  --n-50: #fafafa;
+  --n-100: #f5f5f5;
+  --n-200: #e5e5e5;
+  --n-300: #d4d4d4;
+  --n-400: #a3a3a3;
+  --n-500: #737373;
+  --n-600: #525252;
+  --n-700: #404040;
+  --n-800: #262626;
+  --n-900: #171717;
+  --n-950: #0a0a0a;
+
   /* Render native UI (video control menus, form controls, scrollbars) in dark
      mode so the playback-speed "⋮" menu has legible text/icons on our dark UI. */
   color-scheme: dark;
@@ -19,6 +46,20 @@ video {
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Point the neutral utilities at the tokens above, so a theme switch is a
+     variable swap rather than a rewrite of every className. */
+  --color-neutral-50: var(--n-50);
+  --color-neutral-100: var(--n-100);
+  --color-neutral-200: var(--n-200);
+  --color-neutral-300: var(--n-300);
+  --color-neutral-400: var(--n-400);
+  --color-neutral-500: var(--n-500);
+  --color-neutral-600: var(--n-600);
+  --color-neutral-700: var(--n-700);
+  --color-neutral-800: var(--n-800);
+  --color-neutral-900: var(--n-900);
+  --color-neutral-950: var(--n-950);
 }
 
 body {
