@@ -237,10 +237,15 @@ export default function BlockEditor({
       }
     }
 
+    // A rejected file has to say which file and why, by name and size. The old
+    // message named neither, so a clip that could never upload looked like the
+    // button simply doing nothing.
+    const MB = (n: number) => `${Math.round((n / 1024 / 1024) * 10) / 10}MB`;
     const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500MB — trim longer footage into shorter clips
     if (file.size > MAX_UPLOAD_BYTES) {
       alert(
-        "This file is too large (over 500MB). Please trim it into shorter clips before uploading."
+        `「${file.name}」は ${MB(file.size)} あり、1ファイルの上限 500MB を超えています。\n` +
+          `短く分割してからアップロードしてください。`
       );
       return null;
     }
@@ -256,16 +261,22 @@ export default function BlockEditor({
       });
       if (res.ok) {
         const { url, pendingConversion } = await res.json();
-        // .MOV is stored as-is and converted to MP4 after the post is saved, so
+        // A video is stored as-is and made web-ready after the post is saved, so
         // the preview here may not play on a PC until that finishes.
         if (pendingConversion) setConversionNotice(true);
         return url as string;
       }
       const { error } = await res.json().catch(() => ({ error: null }));
-      alert(error || "Upload failed. Please check your connection and try again.");
+      alert(
+        `「${file.name}」(${MB(file.size)}) をアップロードできませんでした。\n` +
+          `${error || `サーバーエラー (${res.status})`}`
+      );
       return null;
-    } catch {
-      alert("Upload failed. Please check your connection and try again.");
+    } catch (err) {
+      alert(
+        `「${file.name}」(${MB(file.size)}) の送信中に接続が切れました。\n` +
+          `通信環境を確認して、もう一度お試しください。\n(${String(err).slice(0, 120)})`
+      );
       return null;
     }
   }
@@ -335,22 +346,31 @@ export default function BlockEditor({
   // Add more media to a block. Works for a carousel (append) and for a single
   // video/image block (converts it into a carousel with the original first).
   function handleAddMediaClick(index: number) {
-    const b = blocks[index];
-    let t: "video" | "image";
-    if (b.type === "carousel") t = b.items[0]?.type ?? "video";
-    else if (b.type === "video" || b.type === "image") t = b.type;
-    else return;
+    const b = blocksRef.current[index];
+    if (b.type !== "carousel" && b.type !== "video" && b.type !== "image") return;
     setCarouselTarget(index);
+    // Both kinds, whatever the set already holds. This used to be restricted to
+    // the type of the set's FIRST item, which meant a photo set simply would not
+    // show videos in the file picker — the file couldn't be chosen at all, with
+    // nothing on screen to say why.
     if (carouselInputRef.current) {
-      carouselInputRef.current.accept = t === "video" ? "video/*" : "image/*,.heic,.HEIC";
+      carouselInputRef.current.accept = "video/*,image/*,.heic,.HEIC";
     }
     carouselInputRef.current?.click();
+  }
+
+  /** What a picked file actually is, rather than what the set happens to hold. */
+  function mediaTypeOf(file: File): "video" | "image" {
+    if (file.type) return file.type.startsWith("video/") ? "video" : "image";
+    return /\.(mp4|mov|qt|m4v|webm|avi|mkv)$/i.test(file.name) ? "video" : "image";
   }
 
   async function handleAddMedia(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     const index = carouselTarget;
-    const base = index === null ? null : blocks[index];
+    // Read the block as it is now, not as it was when this handler was created —
+    // the file dialog can sit open for a while.
+    const base = index === null ? null : blocksRef.current[index];
     if (
       !files.length ||
       index === null ||
@@ -362,8 +382,6 @@ export default function BlockEditor({
       return;
     }
 
-    const t: "video" | "image" =
-      base.type === "carousel" ? base.items[0]?.type ?? "video" : base.type;
     const tags = base.tags ?? [];
     const caption = base.caption;
     // Existing carousel items, or the single block as the first slide.
@@ -377,7 +395,10 @@ export default function BlockEditor({
       setUploadProgress(files.length > 1 ? `Uploading ${k + 1} of ${files.length}…` : null);
       const url = await uploadFile(files[k]);
       if (url) {
-        items = [...items, { type: t, url }];
+        // Typed from the file itself. Taking the type from the set's first item
+        // silently filed a photo as a video, which then rendered as a broken
+        // player rather than a picture.
+        items = [...items, { type: mediaTypeOf(files[k]), url }];
         updateBlock(index, { type: "carousel", items, tags, caption });
       }
     }
