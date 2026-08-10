@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -67,12 +67,42 @@ const TeamIcon = ({ solid = false }: { solid?: boolean }) =>
     </svg>
   );
 
+// Whether focusing this element means the user is entering text — so pickers,
+// dropdowns and checkboxes don't count, only fields that raise the keyboard.
+function isTextEntry(el: EventTarget | null) {
+  if (!(el instanceof HTMLElement)) return false;
+  if (el.isContentEditable) return true;
+  if (el instanceof HTMLTextAreaElement) return true;
+  if (el instanceof HTMLInputElement) {
+    return ["text", "search", "url", "email", "tel", "number", "password"].includes(el.type);
+  }
+  return false;
+}
+
 // Bottom tab bar for phones — a familiar app-style nav. Hidden on ≥sm where the
 // header already carries navigation. The お知らせ tab shows an unread dot.
 export default function BottomNav() {
   const { status } = useSession();
   const pathname = usePathname();
   const unread = useUnreadNotifications();
+
+  // While a text field has focus — writing a title, a caption, a tag — the bar
+  // slides out of the way: on a phone it otherwise floats over the field's own
+  // buttons, and the keyboard has already covered that corner of the screen.
+  const [typing, setTyping] = useState(false);
+
+  useEffect(() => {
+    const onFocusIn = (e: FocusEvent) => setTyping(isTextEntry(e.target));
+    // `relatedTarget` is whatever is gaining focus, so moving from one field
+    // straight to the next never flashes the bar back in.
+    const onFocusOut = (e: FocusEvent) => setTyping(isTextEntry(e.relatedTarget));
+    document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("focusout", onFocusOut);
+    return () => {
+      document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("focusout", onFocusOut);
+    };
+  }, []);
 
   // The selected-tab highlight is a single element that slides between tabs
   // rather than a background toggled per link. It's positioned by measuring the
@@ -120,7 +150,10 @@ export default function BottomNav() {
     // tab is marked by a lighter pill behind a solid icon rather than by colour.
     // `pointer-events-none` on the wrapper keeps the gaps beside the bar tappable.
     <nav
-      className="sm:hidden fixed inset-x-0 z-50 flex justify-center pointer-events-none"
+      aria-hidden={typing}
+      className={`sm:hidden fixed inset-x-0 z-50 flex justify-center pointer-events-none transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none ${
+        typing ? "translate-y-[160%] opacity-0" : "translate-y-0 opacity-100"
+      }`}
       // Sit 24px above the safe area. With the bar's own 29px radius that puts
       // its corner curve at ~53px from the screen edge — near iPhone's ~55pt
       // display radius — so the capsule reads as concentric with the screen
@@ -129,7 +162,9 @@ export default function BottomNav() {
     >
       <ul
         ref={listRef}
-        className="pointer-events-auto relative flex items-center gap-1 px-2 py-1.5 rounded-full liquid-glass"
+        className={`relative flex items-center gap-1 px-2 py-1.5 rounded-full liquid-glass ${
+          typing ? "pointer-events-none" : "pointer-events-auto"
+        }`}
       >
         {/* The highlight itself — a brighter lens inside the pane that slides to
             whichever tab is selected, easing with a slight overshoot so the
