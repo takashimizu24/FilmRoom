@@ -147,7 +147,37 @@ export function UploadedVideo({ url }: { url: string }) {
   const [holdPaused, setHoldPaused] = useState(false);
   // A file that has gone missing from storage otherwise plays as a silent black
   // box, which reads as "the app is broken" rather than "this clip is gone".
-  const [loadFailed, setLoadFailed] = useState(false);
+  // Why playback failed. A <video> reports a missing file and a format it can't
+  // decode with the SAME error code, so this can't be read off the event — the
+  // file has to be asked for. Saying "file not found" for both sent a perfectly
+  // present video down a re-upload loop that could never fix it.
+  const [failure, setFailure] = useState<{ title: string; detail: string } | null>(null);
+
+  async function diagnoseFailure(src: string) {
+    const code = videoRef.current?.error?.code ?? 0;
+    try {
+      // One byte is enough to learn whether it's there and what it's served as.
+      const res = await fetch(src, { headers: { Range: "bytes=0-0" } });
+      if (!res.ok && res.status !== 206) {
+        setFailure({
+          title: "この動画を読み込めませんでした",
+          detail: `ファイルが見つかりません (${res.status})。もう一度アップロードしてください。`,
+        });
+        return;
+      }
+      setFailure({
+        title: "この端末で再生できない形式です",
+        detail:
+          `ファイルは保存されています（${res.headers.get("content-type") ?? "形式不明"}）。` +
+          `アップロード直後は変換待ちのことがあります。数分おいて再読み込みしてください。`,
+      });
+    } catch {
+      setFailure({
+        title: "この動画を読み込めませんでした",
+        detail: `通信エラーです (code ${code})。接続を確認して再読み込みしてください。`,
+      });
+    }
+  }
 
   // Gesture bookkeeping for tap-to-toggle-controls and press-and-hold-to-pause.
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -338,21 +368,19 @@ export function UploadedVideo({ url }: { url: string }) {
           onTimeUpdate={() => setCurrent(videoRef.current?.currentTime ?? 0)}
           onLoadedMetadata={() => {
             setDuration(videoRef.current?.duration ?? 0);
-            setLoadFailed(false);
+            setFailure(null);
           }}
-          onError={() => setLoadFailed(true)}
+          onError={() => diagnoseFailure(url)}
           onVolumeChange={() => setMuted(videoRef.current?.muted ?? false)}
           className="w-full max-h-[500px] block"
         />
 
         {/* The file couldn't be loaded at all — say so instead of showing a
             black rectangle with dead controls. */}
-        {loadFailed && (
+        {failure && (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-1 bg-black/80 px-6 text-center">
-            <p className="text-sm text-neutral-200">この動画を読み込めませんでした</p>
-            <p className="text-xs text-neutral-500">
-              ファイルが見つかりません。もう一度アップロードしてください。
-            </p>
+            <p className="text-sm text-neutral-200">{failure.title}</p>
+            <p className="text-xs text-neutral-500">{failure.detail}</p>
           </div>
         )}
 

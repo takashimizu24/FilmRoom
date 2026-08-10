@@ -18,6 +18,32 @@ import { needsMp4Conversion } from "@/lib/transcode";
 // uploads hit the ffmpeg timeout and fell back to storing an unplayable file.
 // The file is stored as-is and made web-ready in the background once the post
 // is saved (see src/lib/videoFix.ts).
+// What the file is, by extension. Some pickers (notably iOS sharing a clip
+// straight out of the camera roll) hand over a File with an empty `type`, and
+// the browser then sends application/octet-stream. Storing that verbatim means
+// the object is later served as octet-stream, and a <video> pointed at it just
+// fails — the file is perfectly fine, it simply isn't offered as a video.
+const TYPE_BY_EXT: Record<string, string> = {
+  mov: "video/quicktime",
+  qt: "video/quicktime",
+  mp4: "video/mp4",
+  m4v: "video/mp4",
+  webm: "video/webm",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  heic: "image/heic",
+  webp: "image/webp",
+};
+
+function resolveContentType(headerType: string, filename: string): string {
+  const known = headerType && headerType !== "application/octet-stream" ? headerType : "";
+  if (known) return known;
+  const ext = (filename.split(".").pop() ?? "").toLowerCase();
+  return TYPE_BY_EXT[ext] ?? "application/octet-stream";
+}
+
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -31,7 +57,10 @@ export async function POST(request: NextRequest) {
   const originalName = decodeURIComponent(request.headers.get("x-filename") ?? "");
   const ext = path.extname(originalName);
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
-  const contentType = request.headers.get("content-type") || "application/octet-stream";
+  const contentType = resolveContentType(
+    request.headers.get("content-type") || "",
+    originalName
+  );
   // Tells the client this file may be re-encoded after the post is saved. Every
   // video is checked now, not just QuickTime ones.
   const pendingConversion =
