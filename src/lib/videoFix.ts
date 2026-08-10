@@ -8,7 +8,7 @@ import {
   r2KeyFromUrl,
   r2ObjectMetadata,
 } from "@/lib/r2";
-import { convertMovToMp4, probeVideoCodec } from "@/lib/transcode";
+import { convertMovToMp4, plannedFix, probeVideo } from "@/lib/transcode";
 import { Upload } from "@aws-sdk/lib-storage";
 import { createReadStream, createWriteStream } from "fs";
 import { unlink } from "fs/promises";
@@ -17,9 +17,16 @@ import { Readable } from "stream";
 import os from "os";
 import path from "path";
 
-// iPhone/QuickTime videos (usually HEVC) don't play in Chrome / on Windows /
-// Android. Uploads are stored as-is so the request stays fast and never times
-// out; this module re-encodes them to H.264 afterwards.
+// Uploads are stored exactly as the camera wrote them, so the request stays
+// fast and never times out; this module makes them web-ready afterwards.
+//
+// It used to look only at QuickTime files, on the grounds that everything else
+// "was already H.264 MP4". That left two ways for a video to play badly or not
+// at all, both of which came from a PC or a good camera rather than a phone:
+// a file with its index at the end (playback can't start until the whole thing
+// has been fetched), and a 4K/high-bitrate file that a phone on mobile data
+// can't keep up with. Both look like "slow" or "won't play". Every video is now
+// checked: re-wrapped if that's all it needs, re-encoded if it's too heavy.
 //
 // The converted video is written back over the SAME object, so the URL never
 // changes. That matters more than it looks: this used to upload the MP4 under a
@@ -34,6 +41,18 @@ export function isMovUrl(url: string): boolean {
   return /\.(mov|qt)(\?|#|$)/i.test(url);
 }
 
+/** Only the video URLs in a set of blocks — images are never transcoded. */
+export function videoUrls(blocks: Block[]): string[] {
+  const urls: string[] = [];
+  for (const b of blocks) {
+    if (b.type === "video") urls.push(b.url);
+    else if (b.type === "carousel") {
+      for (const it of b.items) if (it.type === "video") urls.push(it.url);
+    }
+  }
+  return urls;
+}
+
 /** Every media URL referenced by a set of blocks. */
 export function mediaUrls(blocks: Block[]): string[] {
   const urls: string[] = [];
@@ -45,8 +64,8 @@ export function mediaUrls(blocks: Block[]): string[] {
 }
 
 /**
- * Re-encode one stored QuickTime file to H.264 and write it back over the same
- * object. Returns true when the file was converted.
+ * Make one stored video web-ready and write it back over the same object.
+ * Returns true when the file was rewritten.
  */
 export async function convertStoredMov(url: string): Promise<boolean> {
   const key = r2KeyFromUrl(url);
@@ -61,7 +80,7 @@ export async function convertStoredMov(url: string): Promise<boolean> {
   if (meta?.converted === "1") return false;
 
   const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const tmpIn = path.join(os.tmpdir(), `${id}-in.mov`);
+  const tmpIn = path.join(os.tmpdir(), `${id}-in`);
   const tmpOut = path.join(os.tmpdir(), `${id}.mp4`);
   try {
     // The container has limited disk and source clips can be hundreds of MB.
@@ -69,7 +88,8 @@ export async function convertStoredMov(url: string): Promise<boolean> {
     // atom), so avoid staging a local copy when that works; fall back to
     // downloading if the remote read isn't usable.
     let source = url;
-    if (!(await probeVideoCodec(url))) {
+    let info = await probeVideo(url);
+    if (!info) {
       const res = await fetch(url);
       if (!res.ok || !res.body) throw new Error(`download failed (${res.status})`);
       await pipeline(
@@ -77,9 +97,13 @@ export async function convertStoredMov(url: string): Promise<boolean> {
         createWriteStream(tmpIn)
       );
       source = tmpIn;
+      info = await probeVideo(tmpIn);
     }
 
-    await convertMovToMp4(source, tmpOut);
+    const plan = plannedFix(info);
+    if (plan === "none") return false; // unreadable — better left as it is
+
+    await convertMovToMp4(source, tmpOut, plan);
 
     // Same key. A PUT is atomic per object, so readers see either the old video
     // or the new one — never a missing file. The extension stays .mov; browsers
@@ -92,9 +116,10 @@ export async function convertStoredMov(url: string): Promise<boolean> {
         Body: createReadStream(tmpOut),
         ContentType: "video/mp4",
         Metadata: { converted: "1" },
-        // Short-lived caching: the object's bytes change exactly once, and a
-        // long TTL would keep serving the unplayable original after the fix.
-        CacheControl: "public, max-age=300",
+        // The bytes are final now, so they can be cached hard. Before this the
+        // object carries a short TTL (see the upload route) precisely so this
+        // replacement reaches viewers quickly.
+        CacheControl: "public, max-age=31536000, immutable",
       },
     }).done();
 
@@ -111,7 +136,7 @@ export async function convertStoredMov(url: string): Promise<boolean> {
 }
 
 /**
- * Convert any QuickTime videos a post references. Safe to call fire-and-forget
+ * Make every video a post references web-ready. Safe to call fire-and-forget
  * after a post is created or edited; it never throws.
  */
 export async function convertPostMovs(postId: string): Promise<void> {
@@ -119,7 +144,7 @@ export async function convertPostMovs(postId: string): Promise<void> {
     if (!r2Enabled) return;
     const post = await prisma.post.findUnique({ where: { id: postId }, select: { blocks: true } });
     if (!post) return;
-    const targets = [...new Set(mediaUrls(parseBlocks(post.blocks)).filter(isMovUrl))];
+    const targets = [...new Set(videoUrls(parseBlocks(post.blocks)))];
     for (const url of targets) {
       await convertStoredMov(url);
     }

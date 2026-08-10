@@ -5,15 +5,14 @@ import { parseBlocks } from "@/lib/tags";
 import { getR2Client, r2Enabled, R2_BUCKET, r2PublicUrl, r2KeyFromUrl } from "@/lib/r2";
 import { markUnreferenced, sweepOrphanMedia } from "@/lib/mediaGc";
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
-import { convertStoredMov, isMovUrl, mediaUrls } from "@/lib/videoFix";
+import { convertStoredMov, mediaUrls, videoUrls } from "@/lib/videoFix";
 import { NextRequest } from "next/server";
 
 // Maintenance endpoints for stored media. Admin-only.
 //   GET  → storage report (what's in the bucket, what's referenced, orphans)
-//   POST → convert leftover QuickTime files to MP4 (a few per call)
+//   POST → make every stored video web-ready (runs in the background)
 //   POST ?cleanup=1 → queue orphaned objects for deletion (swept after a week)
 //   POST ?sweep=1   → run that sweep now
-const BATCH = 2;
 const ORPHAN_MIN_AGE_MS = 24 * 60 * 60 * 1000;
 
 async function requireAdmin(userId: string): Promise<string[] | null> {
@@ -26,6 +25,12 @@ async function requireAdmin(userId: string): Promise<string[] | null> {
     if (await isTeamAdmin(userId, m.teamId)) adminTeamIds.push(m.teamId);
   }
   return adminTeamIds.length ? adminTeamIds : null;
+}
+
+/** Every video URL referenced by a post. */
+async function referencedVideoUrls(): Promise<string[]> {
+  const posts = await prisma.post.findMany({ select: { blocks: true } });
+  return [...new Set(posts.flatMap((p) => videoUrls(parseBlocks(p.blocks))))];
 }
 
 /** Every object in the bucket, with size and age. */
@@ -78,12 +83,13 @@ export async function GET() {
   let orphanCount = 0;
   let movBytes = 0;
   let movCount = 0;
+  const videos = new Set(await referencedVideoUrls());
   for (const o of objects) {
     const url = r2PublicUrl(o.key);
     if (used.has(url)) {
       usedBytes += o.size;
       usedCount++;
-      if (isMovUrl(url)) {
+      if (videos.has(url)) {
         movBytes += o.size;
         movCount++;
       }
@@ -99,7 +105,11 @@ export async function GET() {
     totalMB: mb(objects.reduce((s, o) => s + o.size, 0)),
     inUse: { count: usedCount, MB: mb(usedBytes) },
     orphans: { count: orphanCount, MB: mb(orphanBytes), note: "older than 24h, not used by any post" },
-    unconvertedMov: { count: movCount, MB: mb(movBytes) },
+    videos: {
+      count: movCount,
+      MB: mb(movBytes),
+      note: "referenced videos; POST here to make any not yet web-ready (faststart / 1080p cap)",
+    },
     pendingDeletion: {
       count: await prisma.orphanMedia.count(),
       note: "queued, still in storage — recoverable until the sweep runs",
@@ -148,17 +158,26 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Convert QuickTime files that are still referenced by posts.
-  const posts = await prisma.post.findMany({ select: { blocks: true } });
-  const targets = [
-    ...new Set(posts.flatMap((p) => mediaUrls(parseBlocks(p.blocks))).filter(isMovUrl)),
-  ];
+  // Bring stored videos up to date. Files already done are skipped cheaply (the
+  // marker lives on the object), so this is safe to call repeatedly.
+  //
+  // Run in the background and answer straight away: a single large clip can take
+  // minutes to re-encode, and holding the request open for the whole backlog
+  // would just time out at the proxy.
+  const targets = await referencedVideoUrls();
+  void (async () => {
+    for (const url of targets) {
+      try {
+        await convertStoredMov(url);
+      } catch (err) {
+        console.error("fix-videos: conversion failed for", url, err);
+      }
+    }
+    console.log(`fix-videos: finished a pass over ${targets.length} videos`);
+  })();
 
-  const batch = targets.slice(0, BATCH);
-  let processed = 0;
-  for (const url of batch) {
-    if (await convertStoredMov(url)) processed++;
-  }
-
-  return Response.json({ processed, remaining: Math.max(0, targets.length - processed) });
+  return Response.json({
+    started: targets.length,
+    note: "running in the background; GET this endpoint to see progress",
+  });
 }

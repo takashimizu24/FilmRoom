@@ -14,12 +14,10 @@ import { needsMp4Conversion } from "@/lib/transcode";
 // streamed straight to storage. Uploaded files live on Cloudflare R2 when it's
 // configured (see src/lib/r2.ts); otherwise they fall back to the local disk.
 //
-// iPhone/QuickTime videos (usually HEVC) can't be played by Chrome/Windows and
-// need converting to H.264 MP4 — but that conversion does NOT happen here.
-// Transcoding a large clip takes many minutes, and doing it inside this request
-// meant big uploads hit the ffmpeg timeout and fell back to storing an
-// unplayable .mov. The file is stored as-is and converted in the background once
-// the post is saved (see src/lib/videoFix.ts).
+// Videos are not transcoded here. Doing it inside this request meant big
+// uploads hit the ffmpeg timeout and fell back to storing an unplayable file.
+// The file is stored as-is and made web-ready in the background once the post
+// is saved (see src/lib/videoFix.ts).
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -34,8 +32,10 @@ export async function POST(request: NextRequest) {
   const ext = path.extname(originalName);
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
   const contentType = request.headers.get("content-type") || "application/octet-stream";
-  // Tells the client this file will be converted after the post is saved.
-  const pendingConversion = needsMp4Conversion(originalName, contentType);
+  // Tells the client this file may be re-encoded after the post is saved. Every
+  // video is checked now, not just QuickTime ones.
+  const pendingConversion =
+    contentType.startsWith("video/") || needsMp4Conversion(originalName, contentType);
 
   const bodyStream = Readable.fromWeb(request.body as import("stream/web").ReadableStream);
 
@@ -48,6 +48,13 @@ export async function POST(request: NextRequest) {
           Key: filename,
           Body: bodyStream,
           ContentType: contentType,
+          // Short TTL until the background pass has been through: the object's
+          // bytes are replaced in place, and a long TTL here would keep serving
+          // the unplayable original from cache afterwards. The converted file
+          // sets a long, immutable TTL of its own.
+          CacheControl: contentType.startsWith("video/")
+            ? "public, max-age=300"
+            : "public, max-age=31536000, immutable",
         },
       });
       await upload.done();

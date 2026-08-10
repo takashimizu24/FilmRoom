@@ -43,44 +43,83 @@ function run(cmd: string, args: string[], timeoutMs: number): Promise<string> {
 
 /** The video codec of a file (e.g. "h264", "hevc"), or null if it can't be read. */
 export async function probeVideoCodec(input: string): Promise<string | null> {
+  return (await probeVideo(input))?.codec ?? null;
+}
+
+export type VideoInfo = { codec: string; width: number; height: number; bitrate: number };
+
+/** Codec, frame size and overall bitrate, or null if the file can't be read. */
+export async function probeVideo(input: string): Promise<VideoInfo | null> {
   try {
     const out = await run(
       "ffprobe",
       [
         "-v", "error",
         "-select_streams", "v:0",
-        "-show_entries", "stream=codec_name",
-        "-of", "default=nw=1:nk=1",
+        "-show_entries", "stream=codec_name,width,height:format=bit_rate",
+        "-of", "default=nw=1",
         input,
       ],
       30_000
     );
-    const name = out.trim().split("\n")[0]?.trim();
-    return name || null;
+    const get = (k: string) => out.match(new RegExp(`^${k}=(.*)$`, "m"))?.[1]?.trim() ?? "";
+    const codec = get("codec_name");
+    if (!codec) return null;
+    return {
+      codec,
+      width: Number(get("width")) || 0,
+      height: Number(get("height")) || 0,
+      bitrate: Number(get("bit_rate")) || 0,
+    };
   } catch {
     return null;
   }
 }
 
+// Above 1080p, or above this bitrate, a clip is re-encoded rather than just
+// re-wrapped: a 4K phone/camera file is tens of Mbps, which stalls constantly on
+// a phone over mobile data even though the browser can decode it.
+const MAX_LONG_SIDE = 1920;
+const MAX_BITRATE = 12_000_000;
+
 /**
- * Produce an H.264 MP4 at `output` from a QuickTime/HEVC `input`.
+ * What has to happen to a stored video before it plays well everywhere:
+ *   "encode"  — wrong codec, too big, or too heavy to stream
+ *   "remux"   — fine as it is, but needs the MP4 container and its index moved
+ *               to the front (`+faststart`) so playback can start before the
+ *               whole file has downloaded
+ *   "none"    — unreadable; leave it alone rather than risk breaking it
+ */
+export function plannedFix(info: VideoInfo | null): "encode" | "remux" | "none" {
+  if (!info) return "none";
+  if (info.codec !== "h264") return "encode";
+  if (Math.max(info.width, info.height) > MAX_LONG_SIDE) return "encode";
+  if (info.bitrate > MAX_BITRATE) return "encode";
+  return "remux";
+}
+
+/**
+ * Produce a web-ready H.264 MP4 at `output`.
  *
- * - If the source video is already H.264, we only re-wrap it into an MP4
- *   container (`-c copy`): instant, lossless, and no size increase.
- * - Otherwise we re-encode to H.264, capped at 1080p (long side) with CRF 26,
- *   which keeps coaching footage light on storage while playing everywhere.
+ * - `remux`: keep the video stream untouched and only rebuild the container
+ *   with `+faststart`. Instant, lossless, no size change — but it moves the
+ *   index to the start of the file, without which a browser can't begin playing
+ *   until it has fetched the end of the file.
+ * - `encode`: re-encode to H.264, capped at 1080p with CRF 26, which keeps
+ *   coaching footage light enough to stream on mobile data.
  */
 export async function convertMovToMp4(
   input: string,
   output: string,
+  plan: "encode" | "remux" | null = null,
   // Transcoding runs in the background (never inside an HTTP request), so this
   // is generous: a long clip from a PC can legitimately take many minutes, and
   // cutting it short would leave an unplayable QuickTime file behind.
   timeoutMs = 45 * 60_000
 ): Promise<void> {
-  const codec = await probeVideoCodec(input);
+  const action = plan ?? plannedFix(await probeVideo(input));
 
-  if (codec === "h264") {
+  if (action === "remux") {
     // Same bytes, MP4 container. Audio copied too; +faststart for web streaming.
     await run(
       "ffmpeg",

@@ -7,7 +7,6 @@ import BlockEditor from "@/components/BlockEditor";
 import TagAutocomplete from "@/components/TagAutocomplete";
 import type { MediaItem } from "@/components/MediaPicker";
 import type { Block } from "@/lib/types";
-import { useIme } from "@/lib/ime";
 
 interface Team {
   id: string;
@@ -39,7 +38,6 @@ export default function NewPostPage() {
   const [groupId, setGroupId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const { imeProps, composing } = useIme();
 
   useEffect(() => {
     if (!session) return;
@@ -129,7 +127,20 @@ export default function NewPostPage() {
       {error && (
         <div className="bg-red-900/30 text-red-400 p-3 rounded-lg mb-4 text-sm">{error}</div>
       )}
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form
+        onSubmit={handleSubmit}
+        // Enter in any single-line field would otherwise submit the whole form
+        // (HTML implicit submission). That is never what it means here: with a
+        // Japanese IME, Enter only confirms the kana→kanji candidate, so typing
+        // a caption or a set title saved the post and navigated away mid-word.
+        // Saving is the button's job.
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") {
+            e.preventDefault();
+          }
+        }}
+        className="space-y-5"
+      >
         {teams.length > 1 && (
           <div>
             <label className="block text-sm font-medium text-neutral-400 mb-1">Team</label>
@@ -153,12 +164,6 @@ export default function NewPostPage() {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            {...imeProps}
-            // Enter submits the form implicitly — but while an IME is
-            // converting, Enter only means "use this candidate".
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && composing(e)) e.preventDefault();
-            }}
             required
             placeholder="e.g. vs Team A - Q3 Analysis"
             className="w-full px-4 py-2 border border-neutral-700 rounded-lg text-neutral-100 bg-neutral-800 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
