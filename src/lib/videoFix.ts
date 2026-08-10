@@ -5,9 +5,8 @@ import {
   getR2Client,
   r2Enabled,
   R2_BUCKET,
-  r2PublicUrl,
   r2KeyFromUrl,
-  deleteR2Objects,
+  r2ObjectMetadata,
 } from "@/lib/r2";
 import { convertMovToMp4, probeVideoCodec } from "@/lib/transcode";
 import { Upload } from "@aws-sdk/lib-storage";
@@ -20,8 +19,16 @@ import path from "path";
 
 // iPhone/QuickTime videos (usually HEVC) don't play in Chrome / on Windows /
 // Android. Uploads are stored as-is so the request stays fast and never times
-// out; this module converts them to H.264 MP4 afterwards, swaps the URLs in the
-// posts that reference them, and deletes the originals.
+// out; this module re-encodes them to H.264 afterwards.
+//
+// The converted video is written back over the SAME object, so the URL never
+// changes. That matters more than it looks: this used to upload the MP4 under a
+// new name, rewrite every post that referenced the original, and delete the
+// original. Anything still holding the old URL — an open post page, an edit tab
+// loaded a minute earlier, the "Reuse" media list — then pointed at a file that
+// no longer existed, and saving from that stale copy put the dead URL back into
+// the post for good. Overwriting in place removes the whole class of problem:
+// there is only ever one object per video, and it is never deleted here.
 
 export function isMovUrl(url: string): boolean {
   return /\.(mov|qt)(\?|#|$)/i.test(url);
@@ -37,32 +44,29 @@ export function mediaUrls(blocks: Block[]): string[] {
   return urls;
 }
 
-/** Replace one media URL wherever it appears in a post's blocks. */
-function replaceUrl(blocks: Block[], oldUrl: string, newUrl: string): Block[] {
-  return blocks.map((b) => {
-    if (b.type === "video" && b.url === oldUrl) return { ...b, url: newUrl };
-    if (b.type === "carousel") {
-      return { ...b, items: b.items.map((it) => (it.url === oldUrl ? { ...it, url: newUrl } : it)) };
-    }
-    return b;
-  });
-}
-
 /**
- * Convert one stored QuickTime file to MP4 and point every post that uses it at
- * the new file. Returns true when the swap happened.
+ * Re-encode one stored QuickTime file to H.264 and write it back over the same
+ * object. Returns true when the file was converted.
  */
 export async function convertStoredMov(url: string): Promise<boolean> {
-  const oldKey = r2KeyFromUrl(url);
-  if (!r2Enabled || !oldKey) return false;
+  const key = r2KeyFromUrl(url);
+  if (!r2Enabled || !key) return false;
+
+  // Already done. Recorded on the object itself rather than in the database, so
+  // the two can never disagree, and so a post being saved repeatedly doesn't
+  // re-run ffmpeg over a file that is already fine. If this check ever fails
+  // open (R2 unreachable), a second pass is still lossless: the file is H.264 by
+  // then, and convertMovToMp4 only re-wraps H.264 rather than re-encoding it.
+  const meta = await r2ObjectMetadata(key);
+  if (meta?.converted === "1") return false;
 
   const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const tmpIn = path.join(os.tmpdir(), `${id}-in.mov`);
   const tmpOut = path.join(os.tmpdir(), `${id}.mp4`);
   try {
-    // The container only has ~1GB of disk, and source clips can be hundreds of
-    // MB. ffmpeg can read the object straight over HTTP (it range-seeks for the
-    // moov atom), so avoid staging a local copy when that works; fall back to
+    // The container has limited disk and source clips can be hundreds of MB.
+    // ffmpeg can read the object straight over HTTP (it range-seeks for the moov
+    // atom), so avoid staging a local copy when that works; fall back to
     // downloading if the remote read isn't usable.
     let source = url;
     if (!(await probeVideoCodec(url))) {
@@ -77,33 +81,27 @@ export async function convertStoredMov(url: string): Promise<boolean> {
 
     await convertMovToMp4(source, tmpOut);
 
-    const newKey = `${id}.mp4`;
+    // Same key. A PUT is atomic per object, so readers see either the old video
+    // or the new one — never a missing file. The extension stays .mov; browsers
+    // go by Content-Type, which is now video/mp4.
     await new Upload({
       client: getR2Client(),
       params: {
         Bucket: R2_BUCKET,
-        Key: newKey,
+        Key: key,
         Body: createReadStream(tmpOut),
         ContentType: "video/mp4",
+        Metadata: { converted: "1" },
+        // Short-lived caching: the object's bytes change exactly once, and a
+        // long TTL would keep serving the unplayable original after the fix.
+        CacheControl: "public, max-age=300",
       },
     }).done();
-    const newUrl = r2PublicUrl(newKey);
 
-    // Point every post using the old file at the converted one.
-    const posts = await prisma.post.findMany({
-      where: { blocks: { contains: url } },
-      select: { id: true, blocks: true },
-    });
-    for (const p of posts) {
-      const updated = replaceUrl(parseBlocks(p.blocks), url, newUrl);
-      await prisma.post.update({ where: { id: p.id }, data: { blocks: JSON.stringify(updated) } });
-    }
-
-    // The original is now unreferenced — drop it so we don't pay to store both.
-    const stillUsed = await prisma.post.count({ where: { blocks: { contains: url } } });
-    if (stillUsed === 0) await deleteR2Objects([oldKey]);
     return true;
   } catch (err) {
+    // The original is untouched, so the video still plays wherever it played
+    // before (Safari/iPhone) — it just isn't fixed for Chrome yet.
     console.error(`mov→mp4 conversion failed for ${url}:`, err);
     return false;
   } finally {

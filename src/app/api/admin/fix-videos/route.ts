@@ -2,7 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { isTeamAdmin } from "@/lib/team";
 import { parseBlocks } from "@/lib/tags";
-import { getR2Client, r2Enabled, R2_BUCKET, r2PublicUrl, r2KeyFromUrl, deleteR2Objects } from "@/lib/r2";
+import { getR2Client, r2Enabled, R2_BUCKET, r2PublicUrl, r2KeyFromUrl } from "@/lib/r2";
+import { markUnreferenced, sweepOrphanMedia } from "@/lib/mediaGc";
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { convertStoredMov, isMovUrl, mediaUrls } from "@/lib/videoFix";
 import { NextRequest } from "next/server";
@@ -10,7 +11,8 @@ import { NextRequest } from "next/server";
 // Maintenance endpoints for stored media. Admin-only.
 //   GET  → storage report (what's in the bucket, what's referenced, orphans)
 //   POST → convert leftover QuickTime files to MP4 (a few per call)
-//   POST ?cleanup=1 → delete orphaned objects older than a day
+//   POST ?cleanup=1 → queue orphaned objects for deletion (swept after a week)
+//   POST ?sweep=1   → run that sweep now
 const BATCH = 2;
 const ORPHAN_MIN_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -98,6 +100,10 @@ export async function GET() {
     inUse: { count: usedCount, MB: mb(usedBytes) },
     orphans: { count: orphanCount, MB: mb(orphanBytes), note: "older than 24h, not used by any post" },
     unconvertedMov: { count: movCount, MB: mb(movBytes) },
+    pendingDeletion: {
+      count: await prisma.orphanMedia.count(),
+      note: "queued, still in storage — recoverable until the sweep runs",
+    },
     brokenRefs: {
       count: brokenRefs.length,
       note: "referenced by a post but missing from storage — needs re-uploading",
@@ -114,9 +120,17 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Admin access required" }, { status: 403 });
   }
 
-  // Sweep abandoned uploads (a file was uploaded but the post was never saved).
-  // Files still referenced by a post are never touched. `minAgeMs=0` also sweeps
-  // very recent leftovers — only safe when nobody is mid-compose.
+  // Run the pending-deletion sweep now instead of waiting for it to be picked up
+  // by ordinary traffic.
+  if (request.nextUrl.searchParams.get("sweep")) {
+    return Response.json(await sweepOrphanMedia(true));
+  }
+
+  // Queue abandoned uploads (a file was uploaded but the post was never saved).
+  // Nothing is deleted here any more — the files are parked and removed by the
+  // sweep a week later, and only if still unreferenced then. This used to delete
+  // on the spot, which meant one wrong answer to "is this referenced?" destroyed
+  // the only copy of a video.
   if (request.nextUrl.searchParams.get("cleanup")) {
     const minAge = request.nextUrl.searchParams.get("all")
       ? 0
@@ -126,10 +140,11 @@ export async function POST(request: NextRequest) {
     const orphans = objects.filter(
       (o) => !used.has(r2PublicUrl(o.key)) && now - o.modified.getTime() >= minAge
     );
-    await deleteR2Objects(orphans.map((o) => o.key));
+    await markUnreferenced(orphans.map((o) => ({ key: o.key, url: r2PublicUrl(o.key) })));
     return Response.json({
-      deleted: orphans.length,
-      freedMB: Math.round((orphans.reduce((s, o) => s + o.size, 0) / 1024 / 1024) * 10) / 10,
+      queuedForDeletion: orphans.length,
+      MB: Math.round((orphans.reduce((s, o) => s + o.size, 0) / 1024 / 1024) * 10) / 10,
+      note: "deleted by the sweep after 7 days, unless a post uses them again",
     });
   }
 

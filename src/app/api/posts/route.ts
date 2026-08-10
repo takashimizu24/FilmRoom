@@ -2,7 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { getActiveTeamId, isTeamMember } from "@/lib/team";
 import { allTagNames, parseBlocks } from "@/lib/tags";
-import { convertPostMovs } from "@/lib/videoFix";
+import { convertPostMovs, mediaUrls } from "@/lib/videoFix";
+import { unmarkReferenced } from "@/lib/mediaGc";
+import type { Block } from "@/lib/types";
 import { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -104,8 +106,13 @@ export async function POST(request: NextRequest) {
     include: { tags: true },
   });
 
-  // QuickTime clips are converted to MP4 after the fact so this response isn't
-  // held up by ffmpeg; the post's URLs are swapped when it finishes.
+  // A clip reused from an older, deleted post may be waiting to be swept — this
+  // post is using it again, so take it off that list.
+  await unmarkReferenced(mediaUrls(blocks as Block[]));
+
+  // QuickTime clips are re-encoded to H.264 after the fact so this response
+  // isn't held up by ffmpeg. The file is rewritten in place, so the URL saved
+  // above stays correct throughout.
   void convertPostMovs(post.id);
 
   return Response.json(post);

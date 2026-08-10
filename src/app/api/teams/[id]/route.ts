@@ -2,7 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { isTeamMember, isTeamAdmin } from "@/lib/team";
 import { parseBlocks } from "@/lib/tags";
-import { r2KeyFromUrl, deleteR2Objects } from "@/lib/r2";
+import { r2KeyFromUrl } from "@/lib/r2";
+import { markUnreferenced } from "@/lib/mediaGc";
 import { NextRequest } from "next/server";
 
 export async function GET(
@@ -106,13 +107,9 @@ export async function DELETE(
   await prisma.post.deleteMany({ where: { teamId: id } });
   await prisma.team.delete({ where: { id } });
 
-  // Delete media that no surviving post references (files can be shared).
-  const orphaned: string[] = [];
-  for (const { url, key } of candidateUrls) {
-    const refs = await prisma.post.count({ where: { blocks: { contains: url } } });
-    if (refs === 0) orphaned.push(key);
-  }
-  await deleteR2Objects(orphaned);
+  // Park the media rather than deleting it outright: deleting a team is the one
+  // action here that can't be undone, so the files stay recoverable for a week.
+  await markUnreferenced(candidateUrls);
 
   return Response.json({ ok: true });
 }

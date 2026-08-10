@@ -1,4 +1,4 @@
-import { S3Client, DeleteObjectsCommand } from "@aws-sdk/client-s3";
+import { S3Client, DeleteObjectsCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 
 // Cloudflare R2 is S3-compatible. These come from Railway service variables.
 const accountId = process.env.R2_ACCOUNT_ID;
@@ -42,6 +42,21 @@ export function r2KeyFromUrl(url: string): string | null {
   if (!R2_PUBLIC_URL) return null;
   const prefix = `${R2_PUBLIC_URL}/`;
   return url.startsWith(prefix) ? url.slice(prefix.length) : null;
+}
+
+/**
+ * The object's user metadata, or null if it can't be read (missing, or R2 is
+ * unreachable). Used to tell a file we've already transcoded from one we
+ * haven't, without keeping that state in the database.
+ */
+export async function r2ObjectMetadata(key: string): Promise<Record<string, string> | null> {
+  if (!r2Enabled) return null;
+  try {
+    const head = await getR2Client().send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: key }));
+    return head.Metadata ?? {};
+  } catch {
+    return null;
+  }
 }
 
 // Best-effort delete of objects from the bucket. Never throws — a failed

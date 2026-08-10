@@ -2,7 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { isTeamMember, isTeamAdmin } from "@/lib/team";
 import { parseBlocks } from "@/lib/tags";
-import { r2KeyFromUrl, deleteR2Objects } from "@/lib/r2";
+import { r2KeyFromUrl } from "@/lib/r2";
+import { markUnreferenced, unmarkReferenced, sweepOrphanMedia } from "@/lib/mediaGc";
 import { convertPostMovs } from "@/lib/videoFix";
 import type { Block } from "@/lib/types";
 import { NextRequest } from "next/server";
@@ -22,10 +23,6 @@ function r2MediaFromBlocks(blocks: Block[]): { url: string; key: string }[] {
   return out;
 }
 
-// Delete R2 objects only when no post still references them. The same uploaded
-// file can be reused across several posts (shared URL), so a file must survive
-// until the last post using it is gone. Call AFTER the DB write so the current
-// post's own (removed) reference is no longer counted.
 /**
  * Who may change a post: its author, and any admin of its team. Every member can
  * still read it and comment on it — this only covers editing the post itself and
@@ -37,15 +34,6 @@ async function canManagePost(
 ): Promise<boolean> {
   if (post.authorId === userId) return true;
   return !!post.teamId && (await isTeamAdmin(userId, post.teamId));
-}
-
-async function deleteUnreferencedR2(media: { url: string; key: string }[]) {
-  const orphaned: string[] = [];
-  for (const { url, key } of media) {
-    const refs = await prisma.post.count({ where: { blocks: { contains: url } } });
-    if (refs === 0) orphaned.push(key);
-  }
-  await deleteR2Objects(orphaned);
 }
 
 export async function GET(
@@ -151,12 +139,16 @@ export async function PATCH(
     include: { tags: true, group: true },
   });
 
-  // Reclaim storage: delete R2 files removed or replaced in this edit, but only
-  // if no other post still references them (shared uploads stay).
+  // Storage is reclaimed later, never here: files dropped by this edit are only
+  // parked (see src/lib/mediaGc.ts). Files this edit brings back are un-parked
+  // first, so re-adding a clip — or saving a copy of the post made before it was
+  // removed — keeps the video alive.
   const oldMedia = r2MediaFromBlocks(parseBlocks(existing.blocks));
-  const newUrls = new Set(r2MediaFromBlocks(blocks as Block[]).map((m) => m.url));
-  const removed = oldMedia.filter((m) => !newUrls.has(m.url));
-  await deleteUnreferencedR2(removed);
+  const newMedia = r2MediaFromBlocks(blocks as Block[]);
+  const newUrls = new Set(newMedia.map((m) => m.url));
+  await unmarkReferenced(newMedia.map((m) => m.url));
+  await markUnreferenced(oldMedia.filter((m) => !newUrls.has(m.url)));
+  void sweepOrphanMedia();
 
   // Convert any newly added QuickTime clips in the background (see the upload
   // route: transcoding inside a request timed out on large files).
@@ -191,9 +183,10 @@ export async function DELETE(
   const media = r2MediaFromBlocks(parseBlocks(existing.blocks));
   await prisma.post.delete({ where: { id } });
 
-  // Reclaim storage: remove this post's uploaded media from R2, unless another
-  // post still uses the same file.
-  await deleteUnreferencedR2(media);
+  // Park this post's uploads rather than deleting them; the sweep removes them
+  // a week from now if nothing has picked them up again.
+  await markUnreferenced(media);
+  void sweepOrphanMedia();
 
   return Response.json({ ok: true });
 }

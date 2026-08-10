@@ -30,6 +30,16 @@ model Team {
   tagGroups   TagGroup[]
 }
 
+/// An uploaded file that no post references any more. Deleting it immediately
+/// is what made videos vanish: any mistake in "is this still used?" destroyed
+/// the only copy. Instead the file is parked here and swept later, so a video
+/// that comes back — an edit undone, a stale tab saved — is still there.
+model OrphanMedia {
+  key      String   @id
+  url      String
+  markedAt DateTime @default(now())
+}
+
 model TeamMembership {
   id       String   @id @default(cuid())
   userId   String

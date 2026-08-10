@@ -93,3 +93,11 @@ CREATE TABLE IF NOT EXISTS "Message" (
   CONSTRAINT "Message_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT "Message_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
+
+-- Uploaded files no post references any more. They are deleted by a sweep after
+-- a grace period, not at the moment they stop being used (see src/lib/mediaGc.ts).
+CREATE TABLE IF NOT EXISTS "OrphanMedia" (
+  "key" TEXT NOT NULL PRIMARY KEY,
+  "url" TEXT NOT NULL,
+  "markedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
