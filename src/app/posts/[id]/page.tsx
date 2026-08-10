@@ -47,6 +47,8 @@ interface Post {
   author: { name: string };
   tags: { id: string; name: string; color?: string | null }[];
   group: { id: string; name: string; color: string | null } | null;
+  /** Set by the API: the viewer is the author or a team admin. */
+  canManage: boolean;
 }
 
 export default function PostPage() {
@@ -115,9 +117,9 @@ export default function PostPage() {
           ← Back
         </Link>
         <div className="flex gap-2">
-          {/* Any team member (i.e. anyone who can view this post) can edit it to
-              add videos/text — not just the original author. */}
-          {session && (
+          {/* Editing is the author's and the team admins'; other members read
+              and comment. */}
+          {session && post.canManage && (
             <Link
               href={`/posts/${post.id}/edit`}
               aria-label="Edit"

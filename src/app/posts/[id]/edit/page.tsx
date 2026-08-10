@@ -23,8 +23,8 @@ export default function EditPostPage() {
   const { data: session, status } = useSession();
 
   const [loading, setLoading] = useState(true);
-  const [allowed, setAllowed] = useState(false);
-  const [isAuthor, setIsAuthor] = useState(false);
+  // Editing (and deleting) is the author's and the team admins'.
+  const [canManage, setCanManage] = useState(false);
   const [title, setTitle] = useState("");
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [tags, setTags] = useState<string[]>([]);
@@ -48,11 +48,9 @@ export default function EditPostPage() {
           setLoading(false);
           return;
         }
-        // Loading the post means the viewer is a member of its team (the API
-        // 403s otherwise), so any member may edit it / add content. Only the
-        // author sees the "delete whole post" action.
-        setAllowed(true);
-        setIsAuthor(!!data.authorId && data.authorId === session?.user?.id);
+        // The API decides; every member can load a post, but only its author
+        // and the team's admins may change it.
+        setCanManage(!!data.canManage);
         const tagNames = (data.tags ?? []).map((t: { name: string }) => t.name);
         setTitle(data.title);
         setBlocks(data.blocks);
@@ -157,10 +155,10 @@ export default function EditPostPage() {
     );
   }
 
-  if (!allowed) {
+  if (!canManage) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-12 text-center text-neutral-500">
-        <p className="mb-2">You don&apos;t have access to this post.</p>
+        <p className="mb-2">この投稿を編集できるのは、投稿者とチーム管理者のみです。</p>
         <Link href={`/posts/${id}`} className="text-neutral-400 hover:text-neutral-200 text-sm transition">
           Back to post
         </Link>
@@ -273,7 +271,7 @@ export default function EditPostPage() {
           </Link>
         </div>
 
-        {isAuthor && (
+        {canManage && (
           <div className="pt-4 border-t border-neutral-800">
             <button
               type="button"

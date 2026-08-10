@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { isTeamMember } from "@/lib/team";
+import { isTeamMember, isTeamAdmin } from "@/lib/team";
 import { parseBlocks } from "@/lib/tags";
 import { r2KeyFromUrl, deleteR2Objects } from "@/lib/r2";
 import { convertPostMovs } from "@/lib/videoFix";
@@ -26,6 +26,19 @@ function r2MediaFromBlocks(blocks: Block[]): { url: string; key: string }[] {
 // file can be reused across several posts (shared URL), so a file must survive
 // until the last post using it is gone. Call AFTER the DB write so the current
 // post's own (removed) reference is no longer counted.
+/**
+ * Who may change a post: its author, and any admin of its team. Every member can
+ * still read it and comment on it — this only covers editing the post itself and
+ * deleting it, which admins can do for the whole team.
+ */
+async function canManagePost(
+  userId: string,
+  post: { authorId: string | null; teamId: string | null }
+): Promise<boolean> {
+  if (post.authorId === userId) return true;
+  return !!post.teamId && (await isTeamAdmin(userId, post.teamId));
+}
+
 async function deleteUnreferencedR2(media: { url: string; key: string }[]) {
   const orphaned: string[] = [];
   for (const { url, key } of media) {
@@ -69,6 +82,8 @@ export async function GET(
   return Response.json({
     ...post,
     blocks: JSON.parse(post.blocks),
+    // The server owns the rule; the page just renders what it's told.
+    canManage: await canManagePost(session.user.id, post),
   });
 }
 
@@ -88,9 +103,11 @@ export async function PATCH(
     return Response.json({ error: "Post not found" }, { status: 404 });
   }
 
-  // Any member of the post's team can edit it (add videos/text, reorder, etc.).
-  if (!existing.teamId || !(await isTeamMember(session.user.id, existing.teamId))) {
-    return Response.json({ error: "Not a member of this team" }, { status: 403 });
+  if (!(await canManagePost(session.user.id, existing))) {
+    return Response.json(
+      { error: "この投稿を編集できるのは、投稿者とチーム管理者のみです" },
+      { status: 403 }
+    );
   }
 
   const { title, blocks, tags, groupId } = await request.json();
@@ -164,9 +181,11 @@ export async function DELETE(
     return Response.json({ error: "Post not found" }, { status: 404 });
   }
 
-  // Only the author can delete their own post.
-  if (existing.authorId !== session.user.id) {
-    return Response.json({ error: "Only the author can delete this post" }, { status: 403 });
+  if (!(await canManagePost(session.user.id, existing))) {
+    return Response.json(
+      { error: "この投稿を削除できるのは、投稿者とチーム管理者のみです" },
+      { status: 403 }
+    );
   }
 
   const media = r2MediaFromBlocks(parseBlocks(existing.blocks));
