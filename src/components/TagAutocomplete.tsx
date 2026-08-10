@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useIme } from "@/lib/ime";
 
 type Suggestion = { name: string; color?: string | null };
 
@@ -26,6 +27,7 @@ export default function TagAutocomplete({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { imeProps, composing } = useIme();
 
   const q = text.trim().toLowerCase();
   const existingSet = new Set(existing.map((t) => t.toLowerCase()));
@@ -51,6 +53,10 @@ export default function TagAutocomplete({
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
+    // Mid-conversion the Enter belongs to the IME, not to us: taking it would
+    // add the unconverted kana as a tag and blank the field the user is still
+    // typing in. The arrows are the IME's candidate list for the same reason.
+    if (composing(e)) return;
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
       if (open && active >= 0 && filtered[active]) add(filtered[active].name);
@@ -91,6 +97,7 @@ export default function TagAutocomplete({
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
+          {...imeProps}
           placeholder={placeholder}
           className={inputCls}
         />

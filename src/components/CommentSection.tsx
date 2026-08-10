@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useComments, type Message } from "./CommentsContext";
 import { linkify } from "@/lib/linkify";
+import { useIme } from "@/lib/ime";
 
 // A threaded comment list + composer scoped to one target: a specific block
 // (`blockRef` = index) or the whole post (`blockRef` = null). Replies are kept
@@ -37,6 +38,7 @@ export default function CommentSection({
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyInput, setReplyInput] = useState("");
   const [openThreads, setOpenThreads] = useState<Record<string, boolean>>({});
+  const { imeProps, composing } = useIme();
 
   const topLevel = topLevelFor(blockRef);
 
@@ -191,7 +193,11 @@ export default function CommentSection({
                     autoFocus
                     value={replyInput}
                     onChange={(e) => setReplyInput(e.target.value)}
+                    {...imeProps}
                     onKeyDown={(e) => {
+                      // Enter confirms a kana→kanji conversion before it means
+                      // "send"; sending here would post the half-typed reply.
+                      if (composing(e)) return;
                       if (e.key === "Enter") {
                         e.preventDefault();
                         handleReply(top.id);
@@ -232,6 +238,12 @@ export default function CommentSection({
             value={input}
             autoFocus={autoFocusComposer}
             onChange={(e) => setInput(e.target.value)}
+            {...imeProps}
+            // Enter submits this form implicitly, so the Enter that only
+            // confirms a conversion has to be swallowed.
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && composing(e)) e.preventDefault();
+            }}
             placeholder={placeholder}
             className="flex-1 min-w-0 px-3 py-2 border border-neutral-700 rounded-lg text-sm text-neutral-100 bg-neutral-800 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
           />

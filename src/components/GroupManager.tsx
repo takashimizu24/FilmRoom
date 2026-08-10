@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useIme } from "@/lib/ime";
 
 interface Group {
   id: string;
@@ -14,6 +15,7 @@ export default function GroupManager({ teamId }: { teamId: string }) {
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("#3b82f6");
+  const { imeProps, composing } = useIme();
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
 
@@ -91,7 +93,9 @@ export default function GroupManager({ teamId }: { teamId: string }) {
                 type="text"
                 defaultValue={g.name}
                 onBlur={(e) => rename(g.id, e.target.value)}
+                {...imeProps}
                 onKeyDown={(e) => {
+                  if (composing(e)) return; // Enter is confirming a conversion
                   if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                 }}
                 className="flex-1 min-w-0 bg-transparent text-sm text-neutral-200 border-b border-transparent focus:border-neutral-600 focus:outline-none px-1 py-0.5"
@@ -128,7 +132,9 @@ export default function GroupManager({ teamId }: { teamId: string }) {
           type="text"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
+          {...imeProps}
           onKeyDown={(e) => {
+            if (composing(e)) return; // Enter is confirming a conversion
             if (e.key === "Enter") create();
           }}
           placeholder="New group name (e.g. Games, Practice)"

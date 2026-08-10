@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { contrastText } from "@/lib/color";
+import { useIme } from "@/lib/ime";
 
 interface Tag {
   name: string;
@@ -24,6 +25,7 @@ export default function TagManager({ teamId }: { teamId: string }) {
   const [newGroup, setNewGroup] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { imeProps, composing } = useIme();
 
   useEffect(() => {
     Promise.all([
@@ -109,6 +111,12 @@ export default function TagManager({ teamId }: { teamId: string }) {
                 type="text"
                 value={newGroup}
                 onChange={(e) => setNewGroup(e.target.value)}
+                {...imeProps}
+                // Enter submits this form implicitly; while converting kana it
+                // only means "use this candidate".
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && composing(e)) e.preventDefault();
+                }}
                 placeholder="新しいタググループ名（例：オフェンス）"
                 className="flex-1 min-w-0 px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-neutral-100 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
               />

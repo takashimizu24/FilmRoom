@@ -9,6 +9,7 @@ import TagAutocomplete from "@/components/TagAutocomplete";
 import UnsavedChangesGuard from "@/components/UnsavedChangesGuard";
 import type { MediaItem } from "@/components/MediaPicker";
 import type { Block } from "@/lib/types";
+import { useIme } from "@/lib/ime";
 
 interface TagSuggestion {
   name: string;
@@ -36,6 +37,7 @@ export default function EditPostPage() {
   const [deleting, setDeleting] = useState(false);
   // Snapshot of the loaded post, to detect unsaved edits.
   const initialSnapshot = useRef<string>("");
+  const { imeProps, composing } = useIme();
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -180,6 +182,12 @@ export default function EditPostPage() {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            {...imeProps}
+            // Enter submits the form implicitly — but while an IME is
+            // converting, Enter only means "use this candidate".
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && composing(e)) e.preventDefault();
+            }}
             required
             className="w-full px-4 py-2 border border-neutral-700 rounded-lg text-neutral-100 bg-neutral-800 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
           />

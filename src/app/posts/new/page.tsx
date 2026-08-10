@@ -7,6 +7,7 @@ import BlockEditor from "@/components/BlockEditor";
 import TagAutocomplete from "@/components/TagAutocomplete";
 import type { MediaItem } from "@/components/MediaPicker";
 import type { Block } from "@/lib/types";
+import { useIme } from "@/lib/ime";
 
 interface Team {
   id: string;
@@ -38,6 +39,7 @@ export default function NewPostPage() {
   const [groupId, setGroupId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const { imeProps, composing } = useIme();
 
   useEffect(() => {
     if (!session) return;
@@ -151,6 +153,12 @@ export default function NewPostPage() {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            {...imeProps}
+            // Enter submits the form implicitly — but while an IME is
+            // converting, Enter only means "use this candidate".
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && composing(e)) e.preventDefault();
+            }}
             required
             placeholder="e.g. vs Team A - Q3 Analysis"
             className="w-full px-4 py-2 border border-neutral-700 rounded-lg text-neutral-100 bg-neutral-800 placeholder-neutral-500 focus:ring-2 focus:ring-neutral-500 focus:border-transparent"
