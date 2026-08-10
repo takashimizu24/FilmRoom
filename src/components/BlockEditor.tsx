@@ -149,6 +149,18 @@ export default function BlockEditor({
   const [pendingInsertType, setPendingInsertType] = useState<"video" | "image" | null>(null);
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // "blockIndex:itemIndex" for media whose file is missing from storage.
+  const [missingMedia, setMissingMedia] = useState<Set<string>>(new Set());
+
+  function markMissing(blockIndex: number, itemIndex: number) {
+    setMissingMedia((prev) => {
+      const key = `${blockIndex}:${itemIndex}`;
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  }
 
   // Insert a block that reuses existing media (same url) — no re-upload. The
   // caption is carried over so the clip stays identifiable when reused again.
@@ -720,11 +732,29 @@ export default function BlockEditor({
                         muted
                         playsInline
                         preload="metadata"
+                        onError={() => markMissing(i, j)}
                         className="w-40 h-24 object-cover rounded-lg bg-black"
                       />
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={it.url} alt="" className="w-40 h-24 object-cover rounded-lg" />
+                      <img
+                        src={it.url}
+                        alt=""
+                        onError={() => markMissing(i, j)}
+                        className="w-40 h-24 object-cover rounded-lg"
+                      />
+                    )}
+                    {/* A thumbnail whose file has gone shows as an empty black
+                        box, which is indistinguishable from a dark first frame.
+                        Say so, so the right one can be removed and re-uploaded. */}
+                    {missingMedia.has(`${i}:${j}`) && (
+                      <div className="absolute inset-0 rounded-lg bg-red-950/80 border border-red-500/60 flex items-center justify-center px-1 text-center">
+                        <span className="text-[10px] leading-tight text-red-200">
+                          ファイルなし
+                          <br />
+                          削除して入れ直す
+                        </span>
+                      </div>
                     )}
                     <span className="absolute top-1 left-1 text-[10px] px-1 rounded bg-black/70 text-neutral-200">
                       {j + 1}
