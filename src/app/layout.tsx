@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "@/components/SessionProvider";
-import { SearchProvider } from "@/components/SearchContext";
+import { BoardFilterProvider } from "@/components/BoardFilterContext";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import { themeInitScript } from "@/lib/theme";
@@ -42,12 +42,12 @@ export default function RootLayout({
             page paints rather than flashing dark and then correcting. */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <SessionProvider>
-          <SearchProvider>
+          <BoardFilterProvider>
             <Header />
             {/* Extra bottom padding on phones so the floating BottomNav never covers content. */}
             <main className="flex-1 pb-28 sm:pb-0">{children}</main>
             <BottomNav />
-          </SearchProvider>
+          </BoardFilterProvider>
         </SessionProvider>
       </body>
     </html>

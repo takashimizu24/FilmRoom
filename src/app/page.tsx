@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -9,7 +9,8 @@ import { YouTubePlayer, UploadedVideo } from "@/components/VideoPlayer";
 import MediaCarousel from "@/components/MediaCarousel";
 import GroupBadge, { FolderIcon } from "@/components/GroupBadge";
 import TagList from "@/components/TagList";
-import { useSearch } from "@/components/SearchContext";
+import { useBoardFilter } from "@/components/BoardFilterContext";
+import { groupChipStyle } from "@/lib/chipStyles";
 import { groupBlocks, hasGroups } from "@/lib/blocks";
 import { hexAlpha } from "@/lib/color";
 
@@ -63,37 +64,6 @@ function isMedia(block: Block): boolean {
     block.type === "youtube" ||
     block.type === "carousel"
   );
-}
-
-// The group filter chips are finished like the group badge on a card: squared
-// (a category, not a #tag), a light on the top edge, the colour ring drawn as an
-// inset shadow, and a small drop shadow. Selection only turns the tint and the
-// ring up, plus a soft halo — the shape never changes.
-const groupChipClass =
-  "px-3 py-1 rounded-md text-xs font-medium backdrop-blur-md backdrop-saturate-150 transition";
-
-function groupChipStyle(color: string | null, active: boolean): CSSProperties {
-  // The "All groups" chip has no colour of its own, so it is drawn from the
-  // theme tokens instead — a fixed grey would vanish on a light ground.
-  if (!color) {
-    return {
-      backgroundColor: active ? "var(--lift-3)" : "var(--lift)",
-      color: active ? "var(--n-100)" : "var(--n-300)",
-      boxShadow: `inset 0 1px 0 var(--sheen-line), inset 0 0 0 1px ${
-        active ? "var(--line-strong)" : "var(--line)"
-      }, 0 1px 3px var(--chip-drop)`,
-    };
-  }
-  const tint = hexAlpha(color, active ? 0.36 : 0.16) ?? undefined;
-  const ring = hexAlpha(color, active ? 0.85 : 0.32) ?? undefined;
-  const halo = active ? `, 0 0 0 3px ${hexAlpha(color, 0.12)}` : "";
-  return {
-    backgroundColor: tint,
-    // A group's own hue is legible on a dark ground but too pale on a light one,
-    // so the theme decides how far it gets pulled toward the text colour.
-    color: `color-mix(in srgb, ${color} var(--hue-ink-mix), var(--hue-ink-base))`,
-    boxShadow: `inset 0 1px 0 var(--sheen-line), inset 0 0 0 1px ${ring}${halo}, 0 1px 3px var(--chip-drop)`,
-  };
 }
 
 // A post row on the board. Shared by the default list and the "ポスト" section
@@ -179,44 +149,29 @@ function MediaBlock({ block }: { block: Block }) {
 }
 
 export default function HomePage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
-  const [activeTags, setActiveTags] = useState<string[]>([]);
-  const [matchMode, setMatchMode] = useState<"and" | "or">("and");
-  const { titleQuery, setTitleQuery } = useSearch();
   const [activeTeamName, setActiveTeamName] = useState<string | null>(null);
   const [teamCount, setTeamCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [noTeam, setNoTeam] = useState(false);
 
-  // Tag filters can arrive via ?tag= (from the header search), so keep that
-  // param in step with the active tags — otherwise clearing a filter here would
-  // come straight back on reload.
-  function syncTagUrl(next: string[]) {
-    const url = new URL(window.location.href);
-    if (next.length) url.searchParams.set("tag", next.join(","));
-    else url.searchParams.delete("tag");
-    window.history.replaceState(null, "", url.pathname + url.search);
-  }
-
-  function toggleTag(name: string) {
-    const next = activeTags.includes(name)
-      ? activeTags.filter((t) => t !== name)
-      : [...activeTags, name];
-    setActiveTags(next);
-    syncTagUrl(next);
-  }
-
-  // Drop every active filter (tags + title search) and go back to the board.
-  function clearFilters() {
-    setActiveTags([]);
-    setTitleQuery("");
-    syncTagUrl([]);
-  }
+  // The filter controls themselves live in the header's menu, so what they set
+  // is shared state rather than this page's.
+  const {
+    titleQuery,
+    setTitleQuery,
+    activeGroupId,
+    setActiveGroupId,
+    activeTags,
+    setActiveTags,
+    toggleTag,
+    matchMode,
+    clearFilters,
+  } = useBoardFilter();
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -244,7 +199,8 @@ export default function HomePage() {
       setTags(await tagsRes.json());
       setGroups(await groupsRes.json());
 
-      // Pre-apply tag filter(s) passed via the URL (comma-separated), e.g. from the menu-bar Tags search.
+      // Pre-apply tag filter(s) passed via the URL (comma-separated), so a
+      // filtered board survives a reload and can be shared as a link.
       const urlTag = new URLSearchParams(window.location.search).get("tag");
       if (urlTag) {
         setActiveTags(urlTag.split(",").map((s) => s.trim()).filter(Boolean));
@@ -253,7 +209,7 @@ export default function HomePage() {
       setLoading(false);
     }
     load();
-  }, [status]);
+  }, [status, setActiveTags]);
 
   if (status === "loading" || (status === "authenticated" && loading)) {
     return (
@@ -304,31 +260,6 @@ export default function HomePage() {
   const basePosts = activeGroupId ? posts.filter((p) => p.groupId === activeGroupId) : posts;
 
   const tagLabel = activeTags.map((t) => `#${t}`).join(matchMode === "and" ? " + " : " or ");
-
-  // Tag pills split by their group (ungrouped last). The heading is dropped
-  // when nothing is grouped, so teams that don't use groups see the old flat list.
-  const tagSections = (() => {
-    const byGroup = new Map<string, { key: string; title: string | null; items: Tag[] }>();
-    const ungrouped: Tag[] = [];
-    for (const tag of tags) {
-      if (!tag.tagGroupId) {
-        ungrouped.push(tag);
-        continue;
-      }
-      const section = byGroup.get(tag.tagGroupId) ?? {
-        key: tag.tagGroupId,
-        title: tag.tagGroupName,
-        items: [],
-      };
-      section.items.push(tag);
-      byGroup.set(tag.tagGroupId, section);
-    }
-    const grouped = [...byGroup.values()];
-    if (ungrouped.length > 0) {
-      grouped.push({ key: "__ungrouped__", title: grouped.length > 0 ? "未分類" : null, items: ungrouped });
-    }
-    return grouped;
-  })();
 
   // Filtering by tag or searching by title shows results in two separate
   // sections: the individual clips (threads) that match, then the posts that
@@ -391,6 +322,13 @@ export default function HomePage() {
   // Unfiltered board.
   const filteredPosts = matchedPosts;
 
+  const activeGroup = groups.find((g) => g.id === activeGroupId) ?? null;
+
+  // A group on its own doesn't change the layout (still a plain list of posts),
+  // but it does have to be visible — with the group tabs now in the menu, the
+  // chip row is the only thing saying why the board is shorter than usual.
+  const anyFilter = filtering || activeGroup !== null;
+
   return (
     <div className="max-w-5xl mx-auto px-3 sm:px-4 py-8">
       <div className="flex items-baseline gap-2 mb-6 min-w-0">
@@ -401,17 +339,33 @@ export default function HomePage() {
               ? "検索結果"
               : "Posts"}
         </h1>
-        {!filtering && teamCount > 1 && activeTeamName && (
+        {!anyFilter && teamCount > 1 && activeTeamName && (
           <span className="text-sm text-neutral-500 truncate min-w-0" title={activeTeamName}>
             {activeTeamName}
           </span>
         )}
       </div>
 
-      {/* Active filters — always visible while filtering, so a tag search can be
-          undone without hunting for the tag list at the bottom of the page. */}
-      {filtering && (
+      {/* What is currently narrowing the board. The controls themselves are in
+          the menu, so this row is what tells you a filter is on — and each chip
+          removes itself, without reopening the menu. */}
+      {anyFilter && (
         <div className="flex flex-wrap items-center gap-2 mb-6">
+          {activeGroup && (
+            <button
+              onClick={() => setActiveGroupId(null)}
+              aria-label={`${activeGroup.name} の絞り込みを解除`}
+              style={groupChipStyle(activeGroup.color, true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium backdrop-blur-md backdrop-saturate-150 transition"
+            >
+              <FolderIcon />
+              {activeGroup.name}
+              <span aria-hidden className="text-sm leading-none opacity-70">
+                ×
+              </span>
+            </button>
+          )}
+
           {activeTags.map((name) => (
             <button
               key={name}
@@ -452,38 +406,6 @@ export default function HomePage() {
           </button>
         </div>
       )}
-
-      <div className="mb-6 space-y-3">
-        {/* Group tabs — same squared glass chip as the group badge on a card, so
-            the filter and the label on a post read as the same object. Selection
-            is shown by a stronger tint and a soft halo, not a different shape. */}
-        {groups.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setActiveGroupId(null)}
-              style={groupChipStyle(null, activeGroupId === null)}
-              className={groupChipClass}
-            >
-              All Groups
-            </button>
-            {groups.map((g) => {
-              const active = activeGroupId === g.id;
-              return (
-                <button
-                  key={g.id}
-                  onClick={() => setActiveGroupId(active ? null : g.id)}
-                  style={groupChipStyle(g.color, active)}
-                  className={`${groupChipClass} inline-flex items-center gap-1.5`}
-                >
-                  <FolderIcon />
-                  {g.name} ({g.count})
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-      </div>
 
       {filtering ? (
         // Filtered / search results: whole posts first, then the matching clips.
@@ -604,94 +526,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Tag list — placed below the post list */}
-      {tags.length > 0 && (
-        <div className="mt-8 pt-6 border-t border-line space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={clearFilters}
-              className={`px-3 py-1 rounded-full text-xs border backdrop-blur-md transition ${
-                activeTags.length === 0
-                  ? "bg-lift-3 border-line-strong text-neutral-100"
-                  : "bg-lift border-line text-neutral-400 hover:bg-lift-2"
-              }`}
-            >
-              All Posts
-            </button>
-          </div>
-
-          {/* Tags are listed under their group so the list stays readable as it
-              grows; ungrouped tags come last (unlabelled when they're the only ones). */}
-          {tagSections.map((section) => (
-            <div key={section.key}>
-              {section.title && (
-                <h3 className="text-[11px] font-semibold text-neutral-500 mb-1.5">{section.title}</h3>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {section.items.map((tag) => {
-                  const selected = activeTags.includes(tag.name);
-                  return (
-                    <button
-                      key={tag.name}
-                      onClick={() => toggleTag(tag.name)}
-                      aria-pressed={selected}
-                      style={
-                        tag.color
-                          ? {
-                              backgroundColor: hexAlpha(tag.color, selected ? 0.32 : 0.16) ?? undefined,
-                              borderColor: hexAlpha(tag.color, selected ? 0.75 : 0.4) ?? undefined,
-                              color: `color-mix(in srgb, ${tag.color} var(--hue-ink-mix), var(--hue-ink-base))`,
-                            }
-                          : undefined
-                      }
-                      className={`px-3 py-1 rounded-full text-xs border backdrop-blur-md transition ${
-                        tag.color
-                          ? ""
-                          : selected
-                            ? "bg-lift-3 border-line-strong text-neutral-100"
-                            : "bg-lift border-line text-neutral-400 hover:bg-lift-2"
-                      }`}
-                    >
-                      {selected ? "✓ " : ""}#{tag.name} ({tag.count})
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-
-          {activeTags.length >= 2 && (
-            <div className="flex items-center gap-2 text-xs text-neutral-400">
-              <span>Match:</span>
-              <div className="inline-flex rounded-lg border border-neutral-700 overflow-hidden">
-                <button
-                  onClick={() => setMatchMode("and")}
-                  className={`px-3 py-1 transition ${
-                    matchMode === "and"
-                      ? "bg-neutral-200 text-neutral-900"
-                      : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
-                  }`}
-                >
-                  All tags
-                </button>
-                <button
-                  onClick={() => setMatchMode("or")}
-                  className={`px-3 py-1 transition border-l border-neutral-700 ${
-                    matchMode === "or"
-                      ? "bg-neutral-200 text-neutral-900"
-                      : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
-                  }`}
-                >
-                  Any tag
-                </button>
-              </div>
-              <span className="text-neutral-600">
-                {matchMode === "and" ? "(match every tag)" : "(match any tag)"}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
