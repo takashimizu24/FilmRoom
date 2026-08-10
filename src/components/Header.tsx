@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useSearch } from "./SearchContext";
 import { useUnreadNotifications } from "./useUnreadNotifications";
+import ThemeToggle from "./ThemeToggle";
 
 interface Team {
   id: string;
@@ -253,6 +254,10 @@ export default function Header() {
                         </select>
                       </div>
                     )}
+
+                    <div className="px-4 py-3 border-b border-neutral-800">
+                      <ThemeToggle />
+                    </div>
 
                     <Link
                       href="/team"

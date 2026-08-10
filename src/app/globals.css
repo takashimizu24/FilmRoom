@@ -129,7 +129,10 @@
     rgba(35, 40, 70, 0.14)
   );
 
-  --hue-ink-mix: 68%;
+  /* 68% left pale hues (light greens, yellows) around 2.8:1 against the white
+     ground; half-and-half brings them past 4.5:1 while still reading as the
+     tag's colour. */
+  --hue-ink-mix: 45%;
   --hue-ink-base: #14161c;
   --sheen-line: rgba(255, 255, 255, 0.9);
   --chip-drop: rgba(30, 34, 50, 0.14);

@@ -5,6 +5,7 @@ import SessionProvider from "@/components/SessionProvider";
 import { SearchProvider } from "@/components/SearchContext";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
+import { themeInitScript } from "@/lib/theme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,7 +23,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
+  // Dark is the CSS default; the theme init script rewrites this tag when the
+  // device is set to (or prefers) light.
+  themeColor: "#08080a",
 };
 
 export default function RootLayout({
@@ -31,8 +34,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} h-full antialiased`}>
+    // The init script below sets `data-theme` on <html> before React hydrates,
+    // so the attribute is expected to differ from the server-rendered markup.
+    <html lang="en" className={`${geistSans.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col font-[family-name:var(--font-geist-sans)]">
+        {/* First thing in the body, so the chosen theme is in place before the
+            page paints rather than flashing dark and then correcting. */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <SessionProvider>
           <SearchProvider>
             <Header />
