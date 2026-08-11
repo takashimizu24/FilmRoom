@@ -99,6 +99,37 @@ export function plannedFix(info: VideoInfo | null): "encode" | "remux" | "none" 
 }
 
 /**
+ * Grab a single frame as a JPEG, for use as a video's poster.
+ *
+ * `-ss` before `-i` seeks by keyframe without decoding what comes before, which
+ * keeps this quick even when reading the file over the network. A clip shorter
+ * than the requested point yields nothing, so the caller retries at 0.
+ */
+export async function extractPoster(
+  input: string,
+  output: string,
+  atSeconds: number,
+  timeoutMs = 2 * 60_000
+): Promise<void> {
+  await run(
+    "ffmpeg",
+    [
+      "-y",
+      "-ss", String(atSeconds),
+      "-i", input,
+      "-frames:v", "1",
+      // Wide enough to stay sharp on a phone, small enough to be nearly free.
+      "-vf", "scale='min(960,iw)':-2",
+      "-q:v", "4",
+      output,
+    ],
+    timeoutMs
+  );
+  const { size } = await stat(output);
+  if (size < 256) throw new Error(`poster came out ${size} bytes`);
+}
+
+/**
  * Produce a web-ready H.264 MP4 at `output`.
  *
  * - `remux`: keep the video stream untouched and only rebuild the container

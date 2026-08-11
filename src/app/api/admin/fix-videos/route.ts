@@ -2,10 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { isTeamAdmin } from "@/lib/team";
 import { parseBlocks } from "@/lib/tags";
-import { getR2Client, r2Enabled, R2_BUCKET, r2PublicUrl, r2KeyFromUrl } from "@/lib/r2";
+import { getR2Client, r2Enabled, R2_BUCKET, R2_PUBLIC_URL, r2PublicUrl, r2KeyFromUrl } from "@/lib/r2";
+import { isPosterKey } from "@/lib/posters";
 import { markUnreferenced, sweepOrphanMedia } from "@/lib/mediaGc";
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
-import { convertStoredMov, mediaUrls, videoUrls } from "@/lib/videoFix";
+import { convertStoredMov, ensurePoster, mediaUrls, videoUrls } from "@/lib/videoFix";
 import { NextRequest } from "next/server";
 
 // Maintenance endpoints for stored media. Admin-only.
@@ -93,7 +94,7 @@ export async function GET() {
         movBytes += o.size;
         movCount++;
       }
-    } else if (now - o.modified.getTime() > ORPHAN_MIN_AGE_MS) {
+    } else if (!isPosterKey(o.key) && now - o.modified.getTime() > ORPHAN_MIN_AGE_MS) {
       orphanBytes += o.size;
       orphanCount++;
     }
@@ -101,6 +102,12 @@ export async function GET() {
 
   const mb = (n: number) => Math.round((n / 1024 / 1024) * 10) / 10;
   return Response.json({
+    // Which host serves the media. Cloudflare's r2.dev is a development
+    // convenience and is rate-limited; a custom domain is the fast path.
+    servedFrom: R2_PUBLIC_URL,
+    servedFromNote: /\.r2\.dev$/.test(new URL(R2_PUBLIC_URL).hostname)
+      ? "r2.dev is rate-limited and not meant for production — a custom domain will be faster"
+      : "custom domain",
     objects: objects.length,
     totalMB: mb(objects.reduce((s, o) => s + o.size, 0)),
     inUse: { count: usedCount, MB: mb(usedBytes) },
@@ -148,7 +155,10 @@ export async function POST(request: NextRequest) {
     const [objects, used] = await Promise.all([listBucket(), referencedUrls()]);
     const now = Date.now();
     const orphans = objects.filter(
-      (o) => !used.has(r2PublicUrl(o.key)) && now - o.modified.getTime() >= minAge
+      (o) =>
+        !isPosterKey(o.key) &&
+        !used.has(r2PublicUrl(o.key)) &&
+        now - o.modified.getTime() >= minAge
     );
     await markUnreferenced(orphans.map((o) => ({ key: o.key, url: r2PublicUrl(o.key) })));
     return Response.json({
@@ -169,6 +179,7 @@ export async function POST(request: NextRequest) {
     for (const url of targets) {
       try {
         await convertStoredMov(url);
+        await ensurePoster(url);
       } catch (err) {
         console.error("fix-videos: conversion failed for", url, err);
       }

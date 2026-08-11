@@ -8,7 +8,8 @@ import {
   r2KeyFromUrl,
   r2ObjectMetadata,
 } from "@/lib/r2";
-import { convertMovToMp4, plannedFix, probeVideo } from "@/lib/transcode";
+import { convertMovToMp4, extractPoster, plannedFix, probeVideo } from "@/lib/transcode";
+import { POSTER_AT_SECONDS, posterKeyFor } from "@/lib/posters";
 import { Upload } from "@aws-sdk/lib-storage";
 import { createReadStream, createWriteStream } from "fs";
 import { unlink } from "fs/promises";
@@ -136,8 +137,66 @@ export async function convertStoredMov(url: string): Promise<boolean> {
 }
 
 /**
- * Make every video a post references web-ready. Safe to call fire-and-forget
- * after a post is created or edited; it never throws.
+ * Make sure a stored video has its poster frame beside it.
+ *
+ * The poster is what lets a page full of clips appear at once: the browser
+ * shows it without touching the video, and the video itself is only fetched
+ * when someone actually presses play.
+ */
+export async function ensurePoster(url: string): Promise<boolean> {
+  const key = r2KeyFromUrl(url);
+  if (!r2Enabled || !key) return false;
+
+  const posterKey = posterKeyFor(key);
+  if (await r2ObjectMetadata(posterKey)) return false; // already there
+
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const tmpIn = path.join(os.tmpdir(), `${id}-poster-in`);
+  const tmpOut = path.join(os.tmpdir(), `${id}.jpg`);
+  try {
+    // ffmpeg can usually seek the object over HTTP; fall back to a local copy.
+    let source = url;
+    if (!(await probeVideo(url))) {
+      const res = await fetch(url);
+      if (!res.ok || !res.body) throw new Error(`download failed (${res.status})`);
+      await pipeline(
+        Readable.fromWeb(res.body as import("stream/web").ReadableStream),
+        createWriteStream(tmpIn)
+      );
+      source = tmpIn;
+    }
+
+    try {
+      await extractPoster(source, tmpOut, POSTER_AT_SECONDS);
+    } catch {
+      // Shorter than the grab point — take the opening frame instead.
+      await extractPoster(source, tmpOut, 0);
+    }
+
+    await new Upload({
+      client: getR2Client(),
+      params: {
+        Bucket: R2_BUCKET,
+        Key: posterKey,
+        Body: createReadStream(tmpOut),
+        ContentType: "image/jpeg",
+        CacheControl: "public, max-age=31536000, immutable",
+      },
+    }).done();
+    return true;
+  } catch (err) {
+    // No poster just means the old behaviour for this one clip.
+    console.error(`poster failed for ${url}:`, err);
+    return false;
+  } finally {
+    await unlink(tmpIn).catch(() => {});
+    await unlink(tmpOut).catch(() => {});
+  }
+}
+
+/**
+ * Make every video a post references web-ready, and give each one a poster.
+ * Safe to call fire-and-forget after a post is created or edited; never throws.
  */
 export async function convertPostMovs(postId: string): Promise<void> {
   try {
@@ -147,6 +206,8 @@ export async function convertPostMovs(postId: string): Promise<void> {
     const targets = [...new Set(videoUrls(parseBlocks(post.blocks)))];
     for (const url of targets) {
       await convertStoredMov(url);
+      // After the conversion, so the still comes from the final file.
+      await ensurePoster(url);
     }
   } catch (err) {
     console.error("convertPostMovs failed:", err);

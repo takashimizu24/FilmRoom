@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { deleteR2Objects, r2KeyFromUrl } from "@/lib/r2";
+import { isPosterKey, posterKeyFor } from "@/lib/posters";
 
 /**
  * Reclaiming storage without losing videos.
@@ -21,6 +22,10 @@ const GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 /** Park media that no post references any more. Deletes nothing. */
 export async function markUnreferenced(media: { url: string; key: string }[]): Promise<void> {
   for (const { url, key } of media) {
+    // A poster belongs to its video, not to a post — no post will ever
+    // reference one, so left to itself the sweep would treat every poster as
+    // abandoned. They go when their video goes.
+    if (isPosterKey(key)) continue;
     // Shared uploads: a file used by another post is not an orphan at all.
     const refs = await prisma.post.count({ where: { blocks: { contains: url } } });
     if (refs > 0) continue;
@@ -70,7 +75,8 @@ export async function sweepOrphanMedia(force = false): Promise<{ deleted: number
   }
 
   if (doomed.length > 0) {
-    await deleteR2Objects(doomed);
+    // Each video's still frame goes with it.
+    await deleteR2Objects([...doomed, ...doomed.map(posterKeyFor)]);
     await prisma.orphanMedia.deleteMany({ where: { key: { in: doomed } } });
   }
   if (revived.length > 0) {

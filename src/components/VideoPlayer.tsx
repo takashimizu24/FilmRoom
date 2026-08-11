@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { posterUrlFor } from "@/lib/posters";
 
 export function extractYoutubeId(url: string): string | null {
   if (!url) return null;
@@ -132,7 +133,7 @@ const ChevronLeftIcon = () => (
 
 const SPEEDS = [0.5, 0.75, 1, 1.5, 2];
 
-export function UploadedVideo({ url }: { url: string }) {
+export function UploadedVideo({ url, active = true }: { url: string; active?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -152,6 +153,32 @@ export function UploadedVideo({ url }: { url: string }) {
   // file has to be asked for. Saying "file not found" for both sent a perfectly
   // present video down a re-upload loop that could never fix it.
   const [failure, setFailure] = useState<{ title: string; detail: string } | null>(null);
+
+  // Nothing is fetched until this clip is both on screen and the one being
+  // looked at. A post can hold several sets of six or seven clips, and mounting
+  // them all with a src had every one of them pulling data at once — twenty
+  // videos competing for the same connection is why a page felt slow even when
+  // each individual file was fine. Once loaded it stays loaded, so paging back
+  // and forth doesn't re-fetch.
+  const [load, setLoad] = useState(
+    // Without the observer there is no way to tell what's on screen, so fall
+    // back to the old behaviour of loading everything.
+    () => typeof window !== "undefined" && !("IntersectionObserver" in window)
+  );
+  useEffect(() => {
+    if (load || !active) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setLoad(true);
+      },
+      // A screen's worth of warning, so it's ready by the time it's reached.
+      { rootMargin: "200% 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [active, load]);
 
   async function diagnoseFailure(src: string) {
     const code = videoRef.current?.error?.code ?? 0;
@@ -231,7 +258,13 @@ export function UploadedVideo({ url }: { url: string }) {
     if (videoRef.current && !videoRef.current.paused) scheduleHide();
   }
 
+  // Pressing play on a clip that hasn't been fetched yet has to fetch it first.
+  function ensureLoaded() {
+    if (!load) setLoad(true);
+  }
+
   function togglePlay() {
+    ensureLoaded();
     const v = videoRef.current;
     if (!v) return;
     if (v.paused) v.play();
@@ -288,7 +321,10 @@ export function UploadedVideo({ url }: { url: string }) {
     if (movedRef.current) return; // a scroll/drag, not a tap
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) v.play(); // tapping a paused video starts it
+    if (v.paused) {
+      ensureLoaded();
+      v.play(); // tapping a paused video starts it
+    }
     else if (controlsVisible) setControlsVisible(false); // tap hides shown controls
     else bumpControls(); // tap reveals controls (they auto-hide again)
   }
@@ -353,7 +389,11 @@ export function UploadedVideo({ url }: { url: string }) {
       >
         <video
           ref={videoRef}
-          src={url}
+          // The still frame stands in until the video is wanted, so a page of
+          // clips paints from a handful of small JPEGs rather than from video.
+          poster={posterUrlFor(url)}
+          src={load ? url : undefined}
+          preload={load ? "metadata" : "none"}
           playsInline
           onPlay={() => {
             setPlaying(true);
@@ -412,6 +452,7 @@ export function UploadedVideo({ url }: { url: string }) {
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
+                  ensureLoaded();
                   videoRef.current?.play();
                 }}
                 className="pointer-events-auto h-16 w-16 rounded-full bg-black/45 hover:bg-black/60 backdrop-blur-sm flex items-center justify-center text-white transition [&_svg]:h-8 [&_svg]:w-8"

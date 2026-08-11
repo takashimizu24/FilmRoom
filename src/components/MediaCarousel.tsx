@@ -49,7 +49,8 @@ export default function MediaCarousel({ items }: { items: CarouselItem[] }) {
         {items.map((it, i) => (
           <div key={i} className="snap-center shrink-0 w-full">
             {it.type === "video" ? (
-              <UploadedVideo url={it.url} />
+              // Only the slide being looked at loads; the rest show their poster.
+              <UploadedVideo url={it.url} active={i === index} />
             ) : (
               <div className="rounded-xl overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
