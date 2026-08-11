@@ -2,7 +2,15 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { isTeamAdmin } from "@/lib/team";
 import { parseBlocks } from "@/lib/tags";
-import { getR2Client, r2Enabled, R2_BUCKET, R2_PUBLIC_URL, r2PublicUrl, r2KeyFromUrl } from "@/lib/r2";
+import {
+  getR2Client,
+  r2Enabled,
+  R2_BUCKET,
+  R2_PUBLIC_URL,
+  R2_LEGACY_PUBLIC_URLS,
+  r2PublicUrl,
+  r2KeyFromUrl,
+} from "@/lib/r2";
 import { isPosterKey } from "@/lib/posters";
 import { markUnreferenced, sweepOrphanMedia } from "@/lib/mediaGc";
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
@@ -14,6 +22,8 @@ import { NextRequest } from "next/server";
 //   POST → make every stored video web-ready (runs in the background)
 //   POST ?cleanup=1 → queue orphaned objects for deletion (swept after a week)
 //   POST ?sweep=1   → run that sweep now
+//   POST ?rebase=1  → preview moving stored media URLs onto the current domain
+//   POST ?rebase=1&apply=1 → actually rewrite them
 const ORPHAN_MIN_AGE_MS = 24 * 60 * 60 * 1000;
 
 async function requireAdmin(userId: string): Promise<string[] | null> {
@@ -135,6 +145,44 @@ export async function POST(request: NextRequest) {
   if (!r2Enabled) return Response.json({ error: "R2 storage is not configured" }, { status: 400 });
   if (!(await requireAdmin(session.user.id))) {
     return Response.json({ error: "Admin access required" }, { status: 403 });
+  }
+
+  // Move stored media URLs onto the current public base, for when the media
+  // moves to its own domain. Old URLs keep working throughout (the old base
+  // stays readable via R2_PUBLIC_URL_LEGACY), so this can be run whenever —
+  // and it previews by default, only writing when told to.
+  if (request.nextUrl.searchParams.get("rebase")) {
+    const apply = !!request.nextUrl.searchParams.get("apply");
+    if (R2_LEGACY_PUBLIC_URLS.length === 0) {
+      return Response.json(
+        { error: "R2_PUBLIC_URL_LEGACY is not set — nothing to move from" },
+        { status: 400 }
+      );
+    }
+    const posts = await prisma.post.findMany({ select: { id: true, blocks: true } });
+    let postsChanged = 0;
+    let urlsChanged = 0;
+    for (const p of posts) {
+      let next = p.blocks;
+      for (const old of R2_LEGACY_PUBLIC_URLS) {
+        // The URLs only ever appear as values inside this JSON, so replacing the
+        // base as plain text is exact and leaves everything else untouched.
+        const hits = next.split(`${old}/`).length - 1;
+        if (hits === 0) continue;
+        urlsChanged += hits;
+        next = next.split(`${old}/`).join(`${R2_PUBLIC_URL}/`);
+      }
+      if (next === p.blocks) continue;
+      postsChanged++;
+      if (apply) await prisma.post.update({ where: { id: p.id }, data: { blocks: next } });
+    }
+    return Response.json({
+      mode: apply ? "applied" : "preview only — add &apply=1 to write",
+      from: R2_LEGACY_PUBLIC_URLS,
+      to: R2_PUBLIC_URL,
+      postsChanged,
+      urlsChanged,
+    });
   }
 
   // Run the pending-deletion sweep now instead of waiting for it to be picked up

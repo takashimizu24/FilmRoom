@@ -9,6 +9,28 @@ export const R2_BUCKET = process.env.R2_BUCKET_NAME ?? "";
 // Public base URL used to serve uploaded media (no trailing slash).
 export const R2_PUBLIC_URL = (process.env.R2_PUBLIC_URL ?? "").replace(/\/$/, "");
 
+/**
+ * Bases this app still recognises as its own, beyond the current one —
+ * comma-separated in R2_PUBLIC_URL_LEGACY.
+ *
+ * Moving the media to a custom domain changes the base of every URL, but posts
+ * saved before the move still hold the old one. Without this, those URLs would
+ * stop being recognised as ours the moment the variable changed: no conversion,
+ * no poster, and the storage bookkeeping would treat every one of those files
+ * as belonging to somebody else. Keeping the old base readable means the switch
+ * can be made first and the stored URLs rewritten afterwards, with nothing
+ * broken in between.
+ */
+export const R2_LEGACY_PUBLIC_URLS = (process.env.R2_PUBLIC_URL_LEGACY ?? "")
+  .split(",")
+  .map((s) => s.trim().replace(/\/$/, ""))
+  .filter(Boolean);
+
+/** Every base whose URLs point at our bucket, current one first. */
+export function r2PublicBases(): string[] {
+  return [R2_PUBLIC_URL, ...R2_LEGACY_PUBLIC_URLS].filter(Boolean);
+}
+
 // True only when every required R2 setting is present. When false, the app
 // falls back to writing uploads to the local disk/volume (legacy behaviour).
 export const r2Enabled = Boolean(
@@ -39,9 +61,11 @@ export function r2PublicUrl(key: string): string {
 // The object key for a URL that points at our R2 bucket, or null for URLs that
 // live elsewhere (local /uploads, YouTube, etc.) and must not be deleted.
 export function r2KeyFromUrl(url: string): string | null {
-  if (!R2_PUBLIC_URL) return null;
-  const prefix = `${R2_PUBLIC_URL}/`;
-  return url.startsWith(prefix) ? url.slice(prefix.length) : null;
+  for (const base of r2PublicBases()) {
+    const prefix = `${base}/`;
+    if (url.startsWith(prefix)) return url.slice(prefix.length);
+  }
+  return null;
 }
 
 /**
