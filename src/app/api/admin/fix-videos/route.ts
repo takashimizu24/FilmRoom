@@ -176,12 +176,28 @@ export async function POST(request: NextRequest) {
       postsChanged++;
       if (apply) await prisma.post.update({ where: { id: p.id }, data: { blocks: next } });
     }
+    // The pending-deletion list stores URLs too, and the sweep re-checks them
+    // against the posts before deleting. Leaving those on the old base would
+    // make a file that comes back into use look unreferenced at sweep time — the
+    // exact mistake this whole mechanism exists to prevent.
+    let parkedChanged = 0;
+    for (const row of await prisma.orphanMedia.findMany()) {
+      let url = row.url;
+      for (const old of R2_LEGACY_PUBLIC_URLS) {
+        if (url.startsWith(`${old}/`)) url = `${R2_PUBLIC_URL}/${url.slice(old.length + 1)}`;
+      }
+      if (url === row.url) continue;
+      parkedChanged++;
+      if (apply) await prisma.orphanMedia.update({ where: { key: row.key }, data: { url } });
+    }
+
     return Response.json({
       mode: apply ? "applied" : "preview only — add &apply=1 to write",
       from: R2_LEGACY_PUBLIC_URLS,
       to: R2_PUBLIC_URL,
       postsChanged,
       urlsChanged,
+      parkedChanged,
     });
   }
 
