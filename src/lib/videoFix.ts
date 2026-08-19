@@ -9,7 +9,7 @@ import {
   r2ObjectMetadata,
 } from "@/lib/r2";
 import { convertMovToMp4, extractPoster, plannedFix, probeVideo } from "@/lib/transcode";
-import { POSTER_AT_SECONDS, posterKeyFor } from "@/lib/posters";
+import { POSTER_AT_SECONDS, posterKeyFor, skipKeyFor } from "@/lib/posters";
 import { Upload } from "@aws-sdk/lib-storage";
 import { createReadStream, createWriteStream } from "fs";
 import { unlink } from "fs/promises";
@@ -68,9 +68,14 @@ export function mediaUrls(blocks: Block[]): string[] {
  * Make one stored video web-ready and write it back over the same object.
  * Returns true when the file was rewritten.
  */
-export async function convertStoredMov(url: string): Promise<boolean> {
+export async function convertStoredMov(url: string, force = false): Promise<boolean> {
   const key = r2KeyFromUrl(url);
   if (!r2Enabled || !key) return false;
+
+  // A clip that already defeated the transcoder is left alone. Without this,
+  // every pass spends the whole 45-minute ffmpeg timeout on it again — six such
+  // clips were burning four and a half hours of CPU per pass, forever.
+  if (!force && (await r2ObjectMetadata(skipKeyFor(key)))) return false;
 
   // Already done. Recorded on the object itself rather than in the database, so
   // the two can never disagree, and so a post being saved repeatedly doesn't
@@ -84,10 +89,8 @@ export async function convertStoredMov(url: string): Promise<boolean> {
   const tmpIn = path.join(os.tmpdir(), `${id}-in`);
   const tmpOut = path.join(os.tmpdir(), `${id}.mp4`);
   try {
-    // The container has limited disk and source clips can be hundreds of MB.
-    // ffmpeg can read the object straight over HTTP (it range-seeks for the moov
-    // atom), so avoid staging a local copy when that works; fall back to
-    // downloading if the remote read isn't usable.
+    // Probing can read the object over HTTP, so start there and only stage a
+    // local copy when that isn't usable (or when an encode needs one, below).
     let source = url;
     let info = await probeVideo(url);
     if (!info) {
@@ -103,6 +106,20 @@ export async function convertStoredMov(url: string): Promise<boolean> {
 
     const plan = plannedFix(info);
     if (plan === "none") return false; // unreadable — better left as it is
+
+    // Re-encoding straight from the object URL means ffmpeg pulls the whole
+    // file back over the network as it decodes, and on a 300MB 4K clip that is
+    // what pushed the job past its timeout every time. Fetch it once, then
+    // encode from disk. A remux is I/O-light and can stay remote.
+    if (plan === "encode" && source === url) {
+      const res = await fetch(url);
+      if (!res.ok || !res.body) throw new Error(`download failed (${res.status})`);
+      await pipeline(
+        Readable.fromWeb(res.body as import("stream/web").ReadableStream),
+        createWriteStream(tmpIn)
+      );
+      source = tmpIn;
+    }
 
     await convertMovToMp4(source, tmpOut, plan);
 
@@ -129,6 +146,21 @@ export async function convertStoredMov(url: string): Promise<boolean> {
     // The original is untouched, so the video still plays wherever it played
     // before (Safari/iPhone) — it just isn't fixed for Chrome yet.
     console.error(`mov→mp4 conversion failed for ${url}:`, err);
+    // Remember the failure so the next pass doesn't spend the same 45 minutes
+    // rediscovering it. `?force=1` on the admin endpoint retries regardless.
+    try {
+      await new Upload({
+        client: getR2Client(),
+        params: {
+          Bucket: R2_BUCKET,
+          Key: skipKeyFor(key),
+          Body: Buffer.from(String(err).slice(0, 500)),
+          ContentType: "text/plain",
+        },
+      }).done();
+    } catch {
+      // Best effort — a missing marker only costs another attempt.
+    }
     return false;
   } finally {
     await unlink(tmpIn).catch(() => {});
@@ -198,14 +230,14 @@ export async function ensurePoster(url: string): Promise<boolean> {
  * Make every video a post references web-ready, and give each one a poster.
  * Safe to call fire-and-forget after a post is created or edited; never throws.
  */
-export async function convertPostMovs(postId: string): Promise<void> {
+export async function convertPostMovs(postId: string, force = false): Promise<void> {
   try {
     if (!r2Enabled) return;
     const post = await prisma.post.findUnique({ where: { id: postId }, select: { blocks: true } });
     if (!post) return;
     const targets = [...new Set(videoUrls(parseBlocks(post.blocks)))];
     for (const url of targets) {
-      await convertStoredMov(url);
+      await convertStoredMov(url, force);
       // After the conversion, so the still comes from the final file.
       await ensurePoster(url);
     }

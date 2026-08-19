@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { deleteR2Objects, r2KeyFromUrl } from "@/lib/r2";
-import { isPosterKey, posterKeyFor } from "@/lib/posters";
+import { isInternalKey, posterKeyFor } from "@/lib/posters";
 
 /**
  * Reclaiming storage without losing videos.
@@ -25,7 +25,7 @@ export async function markUnreferenced(media: { url: string; key: string }[]): P
     // A poster belongs to its video, not to a post — no post will ever
     // reference one, so left to itself the sweep would treat every poster as
     // abandoned. They go when their video goes.
-    if (isPosterKey(key)) continue;
+    if (isInternalKey(key)) continue;
     // Shared uploads: a file used by another post is not an orphan at all.
     const refs = await prisma.post.count({ where: { blocks: { contains: url } } });
     if (refs > 0) continue;

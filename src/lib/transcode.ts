@@ -162,10 +162,10 @@ export async function convertMovToMp4(
       "ffmpeg",
       [
         "-y",
-        // Four threads. The 1-thread limit existed because 4K HEVC (Dolby
-        // Vision) decodes were OOM-killed on the old 1GB container; the plan now
-        // allows 8GB/8vCPU, so this is safe and converts long clips much faster.
-        "-threads", "4",
+        // Let ffmpeg use every core. The old fixed thread count dated from a
+        // 1GB container where 4K HEVC decodes were OOM-killed; the plan now
+        // allows 8GB/8vCPU, and decoding is the slow half of this job.
+        "-threads", "0",
         "-i", input,
         "-c:v", "libx264",
         "-preset", "veryfast",
@@ -174,7 +174,6 @@ export async function convertMovToMp4(
         "-vf", "scale='min(1920,iw)':'min(1920,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2",
         "-c:a", "aac",
         "-b:a", "128k",
-        "-threads", "4",
         "-movflags", "+faststart",
         output,
       ],

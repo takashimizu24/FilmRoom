@@ -11,7 +11,7 @@ import {
   r2PublicUrl,
   r2KeyFromUrl,
 } from "@/lib/r2";
-import { isPosterKey } from "@/lib/posters";
+import { isInternalKey } from "@/lib/posters";
 import { markUnreferenced, sweepOrphanMedia } from "@/lib/mediaGc";
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { convertStoredMov, ensurePoster, mediaUrls, videoUrls } from "@/lib/videoFix";
@@ -24,6 +24,7 @@ import { NextRequest } from "next/server";
 //   POST ?sweep=1   → run that sweep now
 //   POST ?rebase=1  → preview moving stored media URLs onto the current domain
 //   POST ?rebase=1&apply=1 → actually rewrite them
+//   POST ?force=1   → also retry clips a previous pass gave up on
 const ORPHAN_MIN_AGE_MS = 24 * 60 * 60 * 1000;
 
 async function requireAdmin(userId: string): Promise<string[] | null> {
@@ -104,7 +105,7 @@ export async function GET() {
         movBytes += o.size;
         movCount++;
       }
-    } else if (!isPosterKey(o.key) && now - o.modified.getTime() > ORPHAN_MIN_AGE_MS) {
+    } else if (!isInternalKey(o.key) && now - o.modified.getTime() > ORPHAN_MIN_AGE_MS) {
       orphanBytes += o.size;
       orphanCount++;
     }
@@ -220,7 +221,7 @@ export async function POST(request: NextRequest) {
     const now = Date.now();
     const orphans = objects.filter(
       (o) =>
-        !isPosterKey(o.key) &&
+        !isInternalKey(o.key) &&
         !used.has(r2PublicUrl(o.key)) &&
         now - o.modified.getTime() >= minAge
     );
@@ -238,11 +239,12 @@ export async function POST(request: NextRequest) {
   // Run in the background and answer straight away: a single large clip can take
   // minutes to re-encode, and holding the request open for the whole backlog
   // would just time out at the proxy.
+  const force = !!request.nextUrl.searchParams.get("force");
   const targets = await referencedVideoUrls();
   void (async () => {
     for (const url of targets) {
       try {
-        await convertStoredMov(url);
+        await convertStoredMov(url, force);
         await ensurePoster(url);
       } catch (err) {
         console.error("fix-videos: conversion failed for", url, err);
@@ -253,6 +255,7 @@ export async function POST(request: NextRequest) {
 
   return Response.json({
     started: targets.length,
+    force,
     note: "running in the background; GET this endpoint to see progress",
   });
 }

@@ -25,6 +25,23 @@ export function isPosterKey(key: string): boolean {
 }
 
 /**
+ * A marker written beside a video that defeated the transcoder, so the next
+ * pass skips it instead of spending the full ffmpeg timeout on it again. Six
+ * unconvertible clips were costing 45 minutes each, every pass.
+ */
+export const SKIP_PREFIX = "skipped/";
+
+export function skipKeyFor(videoKey: string): string {
+  return `${SKIP_PREFIX}${videoKey}`;
+}
+
+/** Keys the app keeps for its own bookkeeping — never referenced by a post, so
+ *  they must be kept out of the orphan sweep. */
+export function isInternalKey(key: string): boolean {
+  return key.startsWith(POSTER_PREFIX) || key.startsWith(SKIP_PREFIX);
+}
+
+/**
  * Where in the clip to grab the still. The very first frame of match footage is
  * routinely a blur, a bench, or black; two seconds in the play is usually
  * underway and the frame is worth showing.
