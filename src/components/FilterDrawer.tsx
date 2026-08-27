@@ -120,9 +120,9 @@ export default function FilterDrawer({
   // takes you there — and the sheet gets out of the way so the results are
   // visible. On the board itself it stays open, for picking several tags.
   function goToBoard() {
-    if (pathname !== "/") {
+    if (pathname !== "/timeline") {
       onClose();
-      router.push("/");
+      router.push("/timeline");
     }
   }
 

@@ -28,6 +28,23 @@ const HomeIcon = ({ solid = false }: { solid?: boolean }) =>
     </svg>
   );
 
+const TilesIcon = ({ solid = false }: { solid?: boolean }) =>
+  solid ? (
+    <svg {...svg} fill="currentColor" stroke="none">
+      <rect x="3" y="3" width="8" height="8" rx="2" />
+      <rect x="13" y="3" width="8" height="8" rx="2" />
+      <rect x="3" y="13" width="8" height="8" rx="2" />
+      <rect x="13" y="13" width="8" height="8" rx="2" />
+    </svg>
+  ) : (
+    <svg {...svg} fill="none" stroke="currentColor" strokeWidth={1.9}>
+      <rect x="3" y="3" width="8" height="8" rx="2" />
+      <rect x="13" y="3" width="8" height="8" rx="2" />
+      <rect x="3" y="13" width="8" height="8" rx="2" />
+      <rect x="13" y="13" width="8" height="8" rx="2" />
+    </svg>
+  );
+
 const BellIcon = ({ solid = false }: { solid?: boolean }) =>
   solid ? (
     <svg {...svg} fill="currentColor" stroke="none">
@@ -49,23 +66,6 @@ const PlusIcon = ({ solid = false }: { solid?: boolean }) => (
     <path d="M12 8.5v7M8.5 12h7" />
   </svg>
 );
-
-const TeamIcon = ({ solid = false }: { solid?: boolean }) =>
-  solid ? (
-    <svg {...svg} fill="currentColor" stroke="none">
-      <circle cx="9" cy="7" r="4" />
-      <path d="M2 20a7 7 0 0 1 14 0 1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />
-      <path d="M17.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" opacity=".75" />
-      <path d="M17.5 12.5c2.6 0 4.5 2 4.5 4.5a1 1 0 0 1-1 1h-3.4c.26-.6.4-1.28.4-2a8.5 8.5 0 0 0-1.4-4.7 5 5 0 0 1 .9.2z" opacity=".75" />
-    </svg>
-  ) : (
-    <svg {...svg} fill="none" stroke="currentColor" strokeWidth={1.9}>
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  );
 
 // Whether focusing this element means the user is entering text — so pickers,
 // dropdowns and checkboxes don't count, only fields that raise the keyboard.
@@ -138,11 +138,15 @@ export default function BottomNav() {
   if (status !== "authenticated") return null;
   if (pathname === "/login" || pathname === "/register") return null;
 
+  // Four tabs, in the order you'd use them: choose what to watch, then the
+  // list, then what's new, then adding to it. Team settings isn't here — it
+  // lives in the header menu, and a fifth tab would have meant narrowing all of
+  // them to fit a phone.
   const tabs = [
-    { href: "/", label: "ホーム", Icon: HomeIcon, active: pathname === "/" },
+    { href: "/", label: "グループ", Icon: TilesIcon, active: pathname === "/" },
+    { href: "/timeline", label: "タイムライン", Icon: HomeIcon, active: pathname === "/timeline" },
     { href: "/notifications", label: "お知らせ", Icon: BellIcon, active: pathname === "/notifications", badge: unread },
     { href: "/posts/new", label: "投稿", Icon: PlusIcon, active: pathname === "/posts/new" },
-    { href: "/team", label: "チーム", Icon: TeamIcon, active: pathname === "/team" },
   ];
 
   return (

@@ -74,7 +74,7 @@ export function BoardFilterProvider({ children }: { children: ReactNode }) {
   // tag from somewhere else navigates here first, and this then catches up.
   const urlAdopted = useRef(false);
   useEffect(() => {
-    if (pathname !== "/") return;
+    if (pathname !== "/timeline") return;
     // On the very first pass the filter state is still empty while the board is
     // reading ?tag= out of the URL. Writing here would erase the parameter
     // before it has been read, so a shared link would come up unfiltered.
@@ -84,13 +84,21 @@ export function BoardFilterProvider({ children }: { children: ReactNode }) {
     }
     const url = new URL(window.location.href);
     const next = activeTags.join(",");
-    if ((url.searchParams.get("tag") ?? "") === next) return;
+    const nextGroup = activeGroupId ?? "";
+    if (
+      (url.searchParams.get("tag") ?? "") === next &&
+      (url.searchParams.get("group") ?? "") === nextGroup
+    ) {
+      return;
+    }
     if (next) url.searchParams.set("tag", next);
     else url.searchParams.delete("tag");
+    if (nextGroup) url.searchParams.set("group", nextGroup);
+    else url.searchParams.delete("group");
     // Keep the existing state object: it holds the App Router's own history
     // entry, and replacing it with null leaves router.push() unable to navigate.
     window.history.replaceState(window.history.state, "", url.pathname + url.search);
-  }, [activeTags, pathname]);
+  }, [activeTags, activeGroupId, pathname]);
 
   const filtering = activeTags.length > 0 || titleQuery.trim() !== "" || activeGroupId !== null;
 

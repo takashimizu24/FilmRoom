@@ -113,7 +113,7 @@ export default function PostPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-4 print:hidden">
-        <Link href="/" className="text-neutral-400 text-sm hover:text-neutral-200 transition">
+        <Link href="/timeline" className="text-neutral-400 text-sm hover:text-neutral-200 transition">
           ← Back
         </Link>
         <div className="flex gap-2">

@@ -134,7 +134,7 @@ export default function EditPostPage() {
     setDeleting(true);
     const res = await fetch(`/api/posts/${id}`, { method: "DELETE" });
     if (res.ok) {
-      router.push("/");
+      router.push("/timeline");
     } else {
       setDeleting(false);
       alert("Failed to delete the post. Please try again.");

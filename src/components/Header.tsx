@@ -83,7 +83,7 @@ export default function Header() {
               <>
                 {/* Title search: inline box on desktop, magnifier-only on mobile
                     (tapping it reveals a full-width box below the header). */}
-                {pathname === "/" && (
+                {pathname === "/timeline" && (
                   <>
                     <div className="relative hidden sm:block flex-1 min-w-0 max-w-xs">
                       <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500">
@@ -161,7 +161,7 @@ export default function Header() {
         </div>
 
         {/* Mobile: the title-search box drops in below the bar when toggled. */}
-        {session && pathname === "/" && searchOpen && (
+        {session && pathname === "/timeline" && searchOpen && (
           <div className="sm:hidden border-t border-line px-3 pb-2 pt-2">
             <div className="relative max-w-5xl mx-auto">
               <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500">
